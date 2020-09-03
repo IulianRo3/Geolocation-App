@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "687135408603",
+    "firebase_url": "https://coffee-268710.firebaseio.com",
+    "project_id": "coffee-268710",
+    "storage_bucket": "coffee-268710.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:687135408603:android:6c831c2b0095a5b3c627fe",
+        "android_client_info": {
+          "package_name": "com.example.harta"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "687135408603-0cv06omfrefo83n0d4qbhl8812shl6f3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.harta",
+            "certificate_hash": "f2cb4cf0e413e8c0ff3c78716badc75678d90586"
+          }
+        },
+        {
+          "client_id": "687135408603-2hrimbeto4630i22mnrvs20verbss4rr.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8aEzOPaGqf3yAK0y6R98dubKSgiTds5g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "687135408603-2hrimbeto4630i22mnrvs20verbss4rr.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

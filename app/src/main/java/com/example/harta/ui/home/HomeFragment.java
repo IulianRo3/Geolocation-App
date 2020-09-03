@@ -1,21 +1,17 @@
 package com.example.harta.ui.home;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
-import android.widget.Toast;
+
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProviders;
 
 import com.example.harta.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -27,30 +23,27 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
-import java.util.Objects;
-
 public class HomeFragment extends Fragment implements OnMapReadyCallback {
+
     MapView mMapView;
     private GoogleMap googleMap;
     Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
-    private HomeViewModel homeViewModel;
     private static final int REQUEST_CODE = 101;
     private LocationCallback locationCallback;
+
 
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-        mMapView = (MapView) view.findViewById(R.id.mapView);
+        mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
@@ -58,12 +51,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         locationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                if (locationResult == null) {
-                    return;
-                }
-                for (Location currentLocation : locationResult.getLocations()) {
-
-                }
             }
         };
 
@@ -81,48 +68,52 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
                 // For showing a move to my location button
                 if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    requestPermissions( new String[]
-                            {Manifest.permission.ACCESS_FINE_LOCATION},REQUEST_CODE);
+                    requestPermissions(new String[]
+                            {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
                     return;
                 }
 
+
+                fetchLastLocation();
+
                 googleMap.setMyLocationEnabled(true);
-
-
-
 
 
             }
         });
         return view;
     }
+
     private void fetchLastLocation() {
         if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions( new String[]
-                    {Manifest.permission.ACCESS_FINE_LOCATION},REQUEST_CODE);
+            requestPermissions(new String[]
+                    {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
             return;
         }
 
-        Task<Location> task = fusedLocationProviderClient.getLastLocation();
-        task.addOnSuccessListener(new OnSuccessListener<Location>(){
+        final Task<Location> task = fusedLocationProviderClient.getLastLocation();
+        task.addOnSuccessListener(new OnSuccessListener<Location>() {
             @Override
-            public void onSuccess(Location location){
-                if(location!=null){
-                    currentLocation = location;
-                    Toast.makeText(getContext(), location.getLatitude()
-                            +""+ location.getLongitude(), Toast.LENGTH_SHORT).show();
-                    SupportMapFragment supportMapFragment = (SupportMapFragment)
-                            getChildFragmentManager().findFragmentById(R.id.mapView);
-                    assert supportMapFragment != null;
-                    supportMapFragment.getMapAsync(HomeFragment.this);
-
-
-                    // For zooming automatically to the location of the marker
+            public void onSuccess(Location location) {
+                if (task.isSuccessful() && task.getResult() != null) {
+                    currentLocation = task.getResult();
+                    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                            new LatLng(currentLocation.getLatitude(),
+                                    currentLocation.getLongitude()), 15));
 
 
                 }
             }
-        });
+        })
+
+
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d("MapDemoActivity", "Error trying to get last GPS location");
+                        e.printStackTrace();
+                    }
+                });
 
     }
 
@@ -131,6 +122,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     public void onResume() {
         super.onResume();
         mMapView.onResume();
+
+
     }
 
     private void stopLocationUpdates() {
@@ -158,7 +151,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        fetchLastLocation();
 
 
 
