@@ -5,12 +5,14 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.nfc.Tag;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Looper;
 import android.os.Parcelable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.SearchView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -19,14 +21,11 @@ import androidx.fragment.app.Fragment;
 
 import com.example.harta.Cafenea;
 import com.example.harta.R;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
@@ -44,8 +43,15 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.gson.stream.JsonWriter;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Objects;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
@@ -60,6 +66,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private LocationCallback locationCallback;
     Boolean requestingLocationUpdates = true;
     DatabaseReference databaseCafea;
+
     ValueEventListener valueEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
@@ -67,9 +74,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             if (dataSnapshot.exists()) {
                 Log.e("Count ", "" + dataSnapshot.getChildrenCount());
                 for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
-
                     Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
                     assert cafenea != null;
+
                     mrk.add(googleMap.addMarker(new MarkerOptions()
                             .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
                             .title(cafenea.getName())
@@ -90,12 +97,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
         }
     };
-    private long UPDATE_INTERVAL = 60000;  /* 60 secs */
-    private long FASTEST_INTERVAL = 5000; /* 5 secs */
-    private SettingsClient settingsClient;
-    private LocationSettingsRequest locationSettingsRequest;
-    private LocationRequest mLocationRequest;
-    private GoogleApiClient mGoogleApiClient;
+    SearchView searchView;
+    //private GoogleApiClient mGoogleApiClient;
 
     private void fetchLastLocation() {
         if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -127,6 +130,37 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
                         e.printStackTrace();
                     }
                 });
+
+    }
+
+    public void printtojson(ArrayList<Marker> mrk) {
+
+        try {
+            FileOutputStream out = new FileOutputStream(new File(Environment.getDataDirectory().getPath() + "Marcovia.json"), true);
+            OutputStreamWriter osw = new OutputStreamWriter(Objects.requireNonNull(out));
+            JsonWriter writer = new JsonWriter(osw);
+            for (int i = 0; i < mrk.size(); i++) {
+                writer.setIndent("\t");
+                try {
+                    writer.beginObject();
+                    writer.name("Cafenele").beginArray();
+                    writer.beginObject();
+                    writer.name("id").value(String.valueOf(mrk.get(i).getPosition()));
+                    writer.name("name").value(mrk.get(i).getTitle());
+                    writer.name("Address").value(mrk.get(i).getSnippet());
+                    writer.endObject();
+                    writer.endArray();
+                    writer.endObject();
+                    writer.flush();
+                    writer.close();
+                } catch (IOException e) {
+                    Log.e("problema", "nu s-a putut");
+                }
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
 
     }
 
@@ -175,15 +209,40 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
 
             }
         });
-
+        printtojson(mrk);
+        searchView = view.findViewById(R.id.sv_location);
         updateValuesFromBundle(savedInstanceState);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                String location = searchView.getQuery().toString();
+                for (int i = 0; i < mrk.size(); i++) {
+                    if (location.equals(mrk.get(i).getTitle())) {
+                        googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mrk.get(i).getPosition(), 20));
+                    }
+
+                }
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                return false;
+            }
+        });
         return view;
     }
 
     protected void startLocationUpdates() {
-        mLocationRequest = new LocationRequest();
+        //private SettingsClient settingsClient;
+        //private LocationSettingsRequest locationSettingsRequest;
+        LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        /* 60 secs */
+        long UPDATE_INTERVAL = 60000;
         mLocationRequest.setInterval(UPDATE_INTERVAL);
+        /* 5 secs */
+        long FASTEST_INTERVAL = 5000;
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
         if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]

@@ -10,6 +10,8 @@
     <string name="menu_home">Home</string>
     <string name="menu_gallery">Gallery</string>
     <string name="menu_slideshow">Slideshow</string>
-    <string name = "map_key" translatable="false">AIzaSyDsMGouMIW-sP9dxyygBYxr3Il2LPZSFGE</string>
+    <string name="map_key" translatable="false">AIzaSyDsMGouMIW-sP9dxyygBYxr3Il2LPZSFGE</string>
+    <string name="Adresa">Adresa</string>
+    <string name="Titlu">Titlu</string>
 
 </resources>
