@@ -19,7 +19,6 @@ import android.widget.ViewFlipper;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.harta.Cafenea;
 import com.example.harta.R;
@@ -326,27 +325,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         fusedLocationProviderClient.requestLocationUpdates(mLocationRequest, locationCallback, Looper.getMainLooper());
 
 
-    }
-
-    public static class UserViewHolder extends RecyclerView.ViewHolder {
-
-        View mView;
-
-        public UserViewHolder(@NonNull View itemView) {
-            super(itemView);
-            mView = itemView;
-        }
-
-        public void setDetails(String userName, String address) {
-            TextView user_name = (TextView) mView.findViewById(R.id.nume_text);
-            TextView adress = (TextView) mView.findViewById(R.id.adresa_text);
-
-
-            user_name.setText(userName);
-            adress.setText(address);
-
-
-        }
     }
 
 
