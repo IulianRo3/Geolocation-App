@@ -13,5 +13,7 @@
     <string name="map_key" translatable="false">AIzaSyDsMGouMIW-sP9dxyygBYxr3Il2LPZSFGE</string>
     <string name="Adresa">Adresa</string>
     <string name="Titlu">Titlu</string>
+    <string name="previous">Previous</string>
+    <string name="next" />
 
 </resources>
