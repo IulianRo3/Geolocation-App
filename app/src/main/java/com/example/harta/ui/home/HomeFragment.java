@@ -10,6 +10,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -18,13 +19,12 @@ import android.widget.ViewFlipper;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.harta.Cafenea;
 import com.example.harta.R;
-import com.firebase.ui.database.FirebaseRecyclerAdapter;
-import com.firebase.ui.database.FirebaseRecyclerOptions;
+import com.firebase.ui.database.FirebaseListAdapter;
+import com.firebase.ui.database.FirebaseListOptions;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -64,22 +64,36 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     private LocationCallback locationCallback;
     Boolean requestingLocationUpdates = true;
     DatabaseReference databaseCafea;
-    private RecyclerView mResultList;
-
+    ListView lv;
+    FirebaseListAdapter<Cafenea> myAdapter;
 
     private void firebaseUserSearch(String searchText) {
 
-        Log.e("adapter", "A parcurs pana aici");
 
+        Query query = databaseCafea.orderByChild("name").startAt(searchText).
+                endAt(searchText + "\uf8ff");
 
-        Query query = databaseCafea.orderByChild("name");
-        //.startAt(searchText).endAt(searchText + "\uf8ff");
-        FirebaseRecyclerOptions<Cafenea> options =
-                new FirebaseRecyclerOptions.Builder<Cafenea>()
+        FirebaseListOptions<Cafenea> options =
+                new FirebaseListOptions.Builder<Cafenea>()
+                        .setLayout(R.layout.list_layout)
                         .setQuery(query, Cafenea.class)
                         .setLifecycleOwner(this)
                         .build();
-        FirebaseRecyclerAdapter<Cafenea, UserViewHolder> firebaseRecyclerAdapter = new FirebaseRecyclerAdapter<Cafenea, UserViewHolder>(options) {
+
+        myAdapter = new FirebaseListAdapter<Cafenea>(options) {
+            @Override
+            protected void populateView(@NonNull View v, @NonNull Cafenea model, int position) {
+                TextView user_name = (TextView) v.findViewById(R.id.nume_text);
+                TextView adress = (TextView) v.findViewById(R.id.adresa_text);
+
+
+                user_name.setText(model.getName());
+                adress.setText(model.getAddress());
+
+            }
+
+        };
+        /*FirebaseRecyclerAdapter<Cafenea, UserViewHolder> firebaseRecyclerAdapter = new FirebaseRecyclerAdapter<Cafenea, UserViewHolder>(options) {
             @Override
             protected void onBindViewHolder(@NonNull UserViewHolder holder, int position, @NonNull Cafenea model) {
                 holder.setDetails(model.getName(), model.getAddress());
@@ -96,7 +110,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         Log.e("adapter", "A parcurs pana aici");
         mResultList.setAdapter(firebaseRecyclerAdapter);
         firebaseRecyclerAdapter.startListening();
-        Log.e("adapter", "A parcurs TOT");
+        Log.e("adapter", "A parcurs TOT");*/
+        lv.setAdapter(myAdapter);
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -111,10 +126,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         mMapView.onCreate(savedInstanceState);
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
+        lv = (ListView) view.findViewById(R.id.result_list);
 
-        mResultList = (RecyclerView) view.findViewById(R.id.result_list);
+        /*mResultList = (RecyclerView) view.findViewById(R.id.result_list);
         mResultList.setHasFixedSize(true);
-        mResultList.setLayoutManager(new LinearLayoutManager(HomeFragment.this.getContext()));
+        mResultList.setLayoutManager(new LinearLayoutManager(HomeFragment.this.getContext()));*/
 
         locationCallback = new LocationCallback() {
             @Override
