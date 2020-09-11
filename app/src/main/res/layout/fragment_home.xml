@@ -19,14 +19,14 @@
 
             <ListView
                 android:id="@+id/result_list"
-                android:layout_width="394dp"
-                android:layout_height="583dp"
+                android:layout_width="378dp"
+                android:layout_height="584dp"
                 app:layout_constraintBottom_toTopOf="@+id/previous"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintHorizontal_bias="0.466"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/sv_location"
-                app:layout_constraintVertical_bias="0.116" />
+                app:layout_constraintVertical_bias="0.111" />
 
             <Button
                 android:id="@+id/previous"

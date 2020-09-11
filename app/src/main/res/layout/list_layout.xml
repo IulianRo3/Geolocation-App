@@ -6,26 +6,28 @@
 
     <TextView
         android:id="@+id/nume_text"
-        android:layout_width="393dp"
-        android:layout_height="60dp"
+        android:layout_width="380dp"
+        android:layout_height="105dp"
+        android:autoSizeTextType="uniform"
         android:text="@string/Titlu"
-        android:textSize="36sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.121" />
-
-    <TextView
-        android:id="@+id/adresa_text"
-        android:layout_width="370dp"
-        android:layout_height="64dp"
-        android:text="@string/Adresa"
         android:textSize="24sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintHorizontal_bias="0.461"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.119" />
+
+    <TextView
+        android:id="@+id/adresa_text"
+        android:layout_width="362dp"
+        android:layout_height="62dp"
+        android:autoSizeTextType="uniform"
+        android:text="@string/Adresa"
+        android:textSize="22sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.483"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/nume_text"
         app:layout_constraintVertical_bias="0.0" />

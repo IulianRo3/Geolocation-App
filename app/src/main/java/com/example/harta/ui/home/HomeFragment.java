@@ -1,7 +1,10 @@
 package com.example.harta.ui.home;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Looper;
@@ -9,6 +12,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SearchView;
@@ -22,8 +26,6 @@ import androidx.fragment.app.Fragment;
 
 import com.example.harta.Cafenea;
 import com.example.harta.R;
-import com.firebase.ui.database.FirebaseListAdapter;
-import com.firebase.ui.database.FirebaseListOptions;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -48,13 +50,18 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
     ViewFlipper viewFlipper;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     public ArrayList<Marker> mrk;
+    public ArrayList<Cafenea> rezultat;
     MapView mMapView;
     private GoogleMap googleMap;
     Location currentLocation;
@@ -63,15 +70,95 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     private LocationCallback locationCallback;
     Boolean requestingLocationUpdates = true;
     DatabaseReference databaseCafea;
+
+
     ListView lv;
-    FirebaseListAdapter<Cafenea> myAdapter;
+    //FirebaseListAdapter<Cafenea> myAdapter;
 
-    private void firebaseUserSearch(String searchText) {
+    private String getCityName(double latitude, double longitude) throws IOException {
+        String myCity = "";
+        Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
+        List<Address> addresses = geocoder.getFromLocation(currentLocation.getLatitude(), currentLocation.getLongitude(), 1);
+        myCity = addresses.get(0).getLocality();
+        //Log.e("oras","Orasul este"+myCity);
+        return myCity;
+    }
+
+    private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
+        // new LatLng(currentLocation.getLatitude(),
+        // currentLocation.getLongitude())
+
+        final ArrayList<Cafenea> cautare = new ArrayList<>();
+        double latitudine = currentLocation.getLatitude();
+        final double longitudine = currentLocation.getLongitude();
+        Query query = databaseCafea.orderByChild("name");
+        query.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    // dataSnapshot is the "issue" node with all children with id 0
+                    for (DataSnapshot issue : dataSnapshot.getChildren()) {
+                        //Log.e("ceva",""+rezultat.size());
+
+                        //Log.e("Numar Z",""+z);
+                        try {
+                            if (getCityName(Objects.requireNonNull(issue.getValue(Cafenea.class)).getLatitude(), Objects.requireNonNull(issue.getValue(Cafenea.class)).getLatitude()).equals(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
 
 
-        Query query = databaseCafea.orderByChild("name").startAt(searchText).
-                endAt(searchText + "\uf8ff");
+                                if (cautare.size() <= 30) {
+                                    cautare.add(issue.getValue(Cafenea.class));
 
+                                    //Log.e("ceva",""+cautare.size());
+                                    if (cautare.size() == 30) {
+
+                                        for (int i = 0; i < cautare.size(); i++) {
+                                            if (cautare.get(i).getName().contains(searchText)) {
+                                                rezultat.add(cautare.get(i));
+                                                //Log.e("ceva",""+rezultat.size());
+
+
+                                            }
+                                        }
+                                        cautare.clear();
+                                    }
+
+
+                                }
+
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+
+                    }
+
+                    // Log.e("ceva",""+rezultat.size());
+                    //Toast.makeText(HomeFragment.this.requireContext(),rezultat.get(0).getName(),Toast.LENGTH_LONG).show();
+                    cautare.clear();
+
+                }
+                UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                lv.setAdapter(adapter);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+
+       /* endAt(searchText + "\uf8ff");
         FirebaseListOptions<Cafenea> options =
                 new FirebaseListOptions.Builder<Cafenea>()
                         .setLayout(R.layout.list_layout)
@@ -92,25 +179,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
 
         };
-        /*FirebaseRecyclerAdapter<Cafenea, UserViewHolder> firebaseRecyclerAdapter = new FirebaseRecyclerAdapter<Cafenea, UserViewHolder>(options) {
-            @Override
-            protected void onBindViewHolder(@NonNull UserViewHolder holder, int position, @NonNull Cafenea model) {
-                holder.setDetails(model.getName(), model.getAddress());
-            }
 
-            @NonNull
-            @Override
-            public UserViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_layout, parent, false);
-
-                return new UserViewHolder(view);
-            }
-        };
-        Log.e("adapter", "A parcurs pana aici");
-        mResultList.setAdapter(firebaseRecyclerAdapter);
-        firebaseRecyclerAdapter.startListening();
-        Log.e("adapter", "A parcurs TOT");*/
-        lv.setAdapter(myAdapter);
+        */
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -125,11 +195,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         mMapView.onCreate(savedInstanceState);
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
-        lv = (ListView) view.findViewById(R.id.result_list);
+        lv = view.findViewById(R.id.result_list);
 
-        /*mResultList = (RecyclerView) view.findViewById(R.id.result_list);
-        mResultList.setHasFixedSize(true);
-        mResultList.setLayoutManager(new LinearLayoutManager(HomeFragment.this.getContext()));*/
 
         locationCallback = new LocationCallback() {
             @Override
@@ -169,35 +236,35 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         updateValuesFromBundle(savedInstanceState);
 
         searchView.setQueryHint(" ¯_(ツ)_/¯ ");
-        /*
-        String [] columNames = { SearchManager.SUGGEST_COLUMN_TEXT_1 };
-        int [] viewIds = { android.R.id.text1 };
-        CursorAdapter adapter = new SimpleCursorAdapter(HomeFragment.this.requireContext(),
-                android.R.layout.simple_list_item_1, null, columNames, viewIds);
-        searchView.setSuggestionsAdapter(adapter);
-
-         */
 
         viewFlipper = view.findViewById(R.id.view_flipper);
         Button previous = view.findViewById(R.id.previous);
         previous.setOnClickListener(this);
         Button next = view.findViewById(R.id.next);
         next.setOnClickListener(this);
+
+
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
+                rezultat = new ArrayList<>();
 
                 String location = searchView.getQuery().toString();
-                firebaseUserSearch(location);
-               /* for (int i = 0; i < mrk.size(); i++) {
-                    if (location.equals(mrk.get(i).getTitle())) {
+                /*for(int i=0;i<mrk.size();i++){
+                    if(location.equals(mrk.get(i).getTitle())){
+                        try {
+                            getCityName(mrk.get(i).getPosition());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
 
-                        //viewFlipper.showPrevious();
-                        //googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mrk.get(i).getPosition(), 20));
-                       // searchView.setQuery(null, false);
                     }
-
                 }*/
+
+                firebaseUserSearch(location, currentLocation, databaseCafea);
+                rezultat.clear();
+
+
                 return false;
             }
 
@@ -208,6 +275,47 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         });
 
         return view;
+    }
+
+    public static class UsersAdapter extends ArrayAdapter<Cafenea> {
+
+
+        public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
+            super(context, 0, users);
+        }
+
+        @NonNull
+        @Override
+
+        public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+
+            // Get the data item for this position
+
+            Cafenea user = getItem(position);
+
+            // Check if an existing view is being reused, otherwise inflate the view
+
+            if (convertView == null) {
+
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
+
+            }
+
+            // Lookup view for data population
+
+            TextView user_name = convertView.findViewById(R.id.nume_text);
+            TextView adress = convertView.findViewById(R.id.adresa_text);
+
+
+            assert user != null;
+            user_name.setText(user.getName());
+            adress.setText(user.getAddress());
+
+            // Return the completed view to render on screen
+
+            return convertView;
+
+        }
     }
 
     ValueEventListener valueEventListener = new ValueEventListener() {
@@ -277,17 +385,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     }
 
-    //private GoogleApiClient mGoogleApiClient;
 
-    /*
-       @Override
-       public void onClick(View v) {
-           viewFlipper.setInAnimation(HomeFragment.this.requireContext(), R.anim.right);
-           viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
-           viewFlipper.showPrevious();
-           Toast.makeText(HomeFragment.this.requireContext(),"AAAAAAAAAAAAAA",Toast.LENGTH_SHORT).show();
-       }
-       */
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
