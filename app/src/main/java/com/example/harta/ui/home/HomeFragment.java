@@ -54,11 +54,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
-    ViewFlipper viewFlipper;
+    static ViewFlipper viewFlipper;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     public ArrayList<Marker> mrk;
     public ArrayList<Cafenea> rezultat;
@@ -73,24 +72,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
 
     ListView lv;
-    //FirebaseListAdapter<Cafenea> myAdapter;
+
 
     private String getCityName(double latitude, double longitude) throws IOException {
-        String myCity = "";
+        String myCity;
         Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
-        List<Address> addresses = geocoder.getFromLocation(currentLocation.getLatitude(), currentLocation.getLongitude(), 1);
+        List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
         myCity = addresses.get(0).getLocality();
-        //Log.e("oras","Orasul este"+myCity);
+
         return myCity;
     }
 
     private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
-        // new LatLng(currentLocation.getLatitude(),
-        // currentLocation.getLongitude())
+
 
         final ArrayList<Cafenea> cautare = new ArrayList<>();
-        double latitudine = currentLocation.getLatitude();
-        final double longitudine = currentLocation.getLongitude();
         Query query = databaseCafea.orderByChild("name");
         query.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -98,11 +94,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 if (dataSnapshot.exists()) {
                     // dataSnapshot is the "issue" node with all children with id 0
                     for (DataSnapshot issue : dataSnapshot.getChildren()) {
-                        //Log.e("ceva",""+rezultat.size());
 
-                        //Log.e("Numar Z",""+z);
                         try {
-                            if (getCityName(Objects.requireNonNull(issue.getValue(Cafenea.class)).getLatitude(), Objects.requireNonNull(issue.getValue(Cafenea.class)).getLatitude()).equals(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
+                            new Cafenea();
+                            Cafenea caf;
+                            caf = issue.getValue(Cafenea.class);
+                            assert caf != null;
+                            if (getCityName(caf.getLatitude(), caf.getLongitude()).equals(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
 
 
                                 if (cautare.size() <= 30) {
@@ -277,44 +275,26 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         return view;
     }
 
-    public static class UsersAdapter extends ArrayAdapter<Cafenea> {
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.previous: {
+                //searchView.clearFocus();
+                viewFlipper.setInAnimation(HomeFragment.this.requireContext(), R.anim.right);
+                viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
+                viewFlipper.showPrevious();
 
-
-        public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
-            super(context, 0, users);
-        }
-
-        @NonNull
-        @Override
-
-        public View getView(int position, View convertView, @NonNull ViewGroup parent) {
-
-            // Get the data item for this position
-
-            Cafenea user = getItem(position);
-
-            // Check if an existing view is being reused, otherwise inflate the view
-
-            if (convertView == null) {
-
-                convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
-
+                Toast.makeText(HomeFragment.this.requireContext(), "AAAAAAAAAAAAAA", Toast.LENGTH_SHORT).show();
+                break;
             }
-
-            // Lookup view for data population
-
-            TextView user_name = convertView.findViewById(R.id.nume_text);
-            TextView adress = convertView.findViewById(R.id.adresa_text);
-
-
-            assert user != null;
-            user_name.setText(user.getName());
-            adress.setText(user.getAddress());
-
-            // Return the completed view to render on screen
-
-            return convertView;
-
+            case R.id.next: {
+                viewFlipper.setInAnimation(HomeFragment.this.requireContext(), android.R.anim.slide_in_left);
+                viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), android.R.anim.slide_out_right);
+                //searchView.setIconified(false);
+                viewFlipper.showNext();
+                //searchView.clearFocus();
+                break;
+            }
         }
     }
 
@@ -385,24 +365,61 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     }
 
+    public class UsersAdapter extends ArrayAdapter<Cafenea> {
 
-    @Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.previous: {
-                viewFlipper.setInAnimation(HomeFragment.this.requireContext(), R.anim.right);
-                viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
-                viewFlipper.showPrevious();
-                Toast.makeText(HomeFragment.this.requireContext(), "AAAAAAAAAAAAAA", Toast.LENGTH_SHORT).show();
-                break;
+
+        public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
+            super(context, 0, users);
+        }
+
+        @NonNull
+        @Override
+
+        public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+
+            // Get the data item for this position
+
+            Cafenea user = getItem(position);
+
+            // Check if an existing view is being reused, otherwise inflate the view
+
+            if (convertView == null) {
+
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
+
             }
-            case R.id.next: {
-                viewFlipper.setInAnimation(HomeFragment.this.requireContext(), android.R.anim.slide_in_left);
-                viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), android.R.anim.slide_out_right);
-                searchView.setIconified(false);
-                viewFlipper.showNext();
-                break;
-            }
+
+            // Lookup view for data population
+
+            final TextView user_name = convertView.findViewById(R.id.nume_text);
+            final TextView adress = convertView.findViewById(R.id.adresa_text);
+            Button Locatie = convertView.findViewById(R.id.buttonLocatie);
+
+            assert user != null;
+            user_name.setText(user.getName());
+            adress.setText(user.getAddress());
+
+            Locatie.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    //searchView.clearFocus();
+                    viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
+                    viewFlipper.showPrevious();
+                    for (int i = 0; i < rezultat.size(); i++) {
+                        if (user_name.getText().equals(rezultat.get(i).getName()) && adress.getText().equals(rezultat.get(i).getAddress())) {
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                    new LatLng(rezultat.get(i).getLatitude(),
+                                            rezultat.get(i).getLongitude()), 20));
+                        }
+                    }
+
+                    Log.e("apasat", "A mers");
+                }
+            });
+
+            // Return the completed view to render on screen
+
+            return convertView;
+
         }
     }
 

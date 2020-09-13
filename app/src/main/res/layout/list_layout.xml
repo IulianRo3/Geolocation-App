@@ -6,11 +6,11 @@
 
     <TextView
         android:id="@+id/nume_text"
-        android:layout_width="380dp"
-        android:layout_height="105dp"
+        android:layout_width="357dp"
+        android:layout_height="58dp"
         android:autoSizeTextType="uniform"
         android:text="@string/Titlu"
-        android:textSize="24sp"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.461"
@@ -20,15 +20,39 @@
 
     <TextView
         android:id="@+id/adresa_text"
-        android:layout_width="362dp"
-        android:layout_height="62dp"
+        android:layout_width="348dp"
+        android:layout_height="33dp"
         android:autoSizeTextType="uniform"
         android:text="@string/Adresa"
-        android:textSize="22sp"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.483"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/nume_text"
         app:layout_constraintVertical_bias="0.0" />
+
+    <Button
+        android:id="@+id/buttonLocatie"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Locatie"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.806"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/adresa_text"
+        app:layout_constraintVertical_bias="0.031" />
+
+    <Button
+        android:id="@+id/buttonDetalii"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Detalii"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/buttonLocatie"
+        app:layout_constraintHorizontal_bias="0.216"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/adresa_text"
+        app:layout_constraintVertical_bias="0.031" />
 </androidx.constraintlayout.widget.ConstraintLayout>
