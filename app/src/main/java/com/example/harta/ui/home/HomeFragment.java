@@ -1,6 +1,7 @@
 package com.example.harta.ui.home;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Address;
@@ -57,6 +58,7 @@ import java.util.Locale;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
+    @SuppressLint("StaticFieldLeak")
     static ViewFlipper viewFlipper;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     public ArrayList<Marker> mrk;
@@ -82,6 +84,39 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
         return myCity;
     }
+
+    ValueEventListener valueEventListener = new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            mrk.clear();
+            if (dataSnapshot.exists()) {
+                Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
+                    assert cafenea != null;
+                    if (cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
+                        if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                            mrk.add(googleMap.addMarker(new MarkerOptions()
+                                    .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                    .title(cafenea.getName())
+                                    .snippet(cafenea.getAddress())
+                                    .icon(BitmapDescriptorFactory.defaultMarker
+                                            (BitmapDescriptorFactory.HUE_AZURE))));
+                        }
+                    }
+
+
+                }
+            }  // Log.e("ACCESARE ", "NU A MERS");
+
+        }
+
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError error) {
+
+        }
+    };
 
     private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
 
@@ -110,7 +145,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                     if (cautare.size() == 30) {
 
                                         for (int i = 0; i < cautare.size(); i++) {
-                                            if (cautare.get(i).getName().contains(searchText)) {
+                                            if (cautare.get(i).getName().toLowerCase().contains(searchText)) {
                                                 rezultat.add(cautare.get(i));
                                                 //Log.e("ceva",""+rezultat.size());
 
@@ -247,7 +282,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             public boolean onQueryTextSubmit(String query) {
                 rezultat = new ArrayList<>();
 
-                String location = searchView.getQuery().toString();
+                String location = searchView.getQuery().toString().toLowerCase();
                 /*for(int i=0;i<mrk.size();i++){
                     if(location.equals(mrk.get(i).getTitle())){
                         try {
@@ -284,7 +319,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
                 viewFlipper.showPrevious();
 
-                Toast.makeText(HomeFragment.this.requireContext(), "AAAAAAAAAAAAAA", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(HomeFragment.this.requireContext(), "AAAAAAAAAAAAAA", Toast.LENGTH_SHORT).show();
                 break;
             }
             case R.id.next: {
@@ -297,37 +332,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
         }
     }
-
-    ValueEventListener valueEventListener = new ValueEventListener() {
-        @Override
-        public void onDataChange(DataSnapshot dataSnapshot) {
-            mrk.clear();
-            if (dataSnapshot.exists()) {
-                Log.e("Count ", "" + dataSnapshot.getChildrenCount());
-                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
-                    Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
-                    assert cafenea != null;
-
-                    mrk.add(googleMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
-                            .title(cafenea.getName())
-                            .snippet(cafenea.getAddress())
-                            .icon(BitmapDescriptorFactory.defaultMarker
-                                    (BitmapDescriptorFactory.HUE_AZURE))));
-
-
-                }
-            } else {
-                Log.e("ACCESARE ", "NU A MERS");
-            }
-        }
-
-
-        @Override
-        public void onCancelled(@NonNull DatabaseError error) {
-
-        }
-    };
     SearchView searchView;
     //private SettingsClient settingsClient;
     //private LocationSettingsRequest locationSettingsRequest;
@@ -365,62 +369,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     }
 
-    public class UsersAdapter extends ArrayAdapter<Cafenea> {
-
-
-        public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
-            super(context, 0, users);
+    private void updateValuesFromBundle(Bundle savedInstanceState) {
+        if (savedInstanceState == null) {
+            return;
         }
-
-        @NonNull
-        @Override
-
-        public View getView(int position, View convertView, @NonNull ViewGroup parent) {
-
-            // Get the data item for this position
-
-            Cafenea user = getItem(position);
-
-            // Check if an existing view is being reused, otherwise inflate the view
-
-            if (convertView == null) {
-
-                convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
-
-            }
-
-            // Lookup view for data population
-
-            final TextView user_name = convertView.findViewById(R.id.nume_text);
-            final TextView adress = convertView.findViewById(R.id.adresa_text);
-            Button Locatie = convertView.findViewById(R.id.buttonLocatie);
-
-            assert user != null;
-            user_name.setText(user.getName());
-            adress.setText(user.getAddress());
-
-            Locatie.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View view) {
-                    //searchView.clearFocus();
-                    viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
-                    viewFlipper.showPrevious();
-                    for (int i = 0; i < rezultat.size(); i++) {
-                        if (user_name.getText().equals(rezultat.get(i).getName()) && adress.getText().equals(rezultat.get(i).getAddress())) {
-                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
-                                    new LatLng(rezultat.get(i).getLatitude(),
-                                            rezultat.get(i).getLongitude()), 20));
-                        }
-                    }
-
-                    Log.e("apasat", "A mers");
-                }
-            });
-
-            // Return the completed view to render on screen
-
-            return convertView;
-
+        if (savedInstanceState.keySet().contains(REQUESTING_LOCATION_UPDATES_KEY)) {
+            requestingLocationUpdates = savedInstanceState.getBoolean(
+                    REQUESTING_LOCATION_UPDATES_KEY);
         }
+        UpdateUi();
+        // Toast.makeText(HomeFragment.this.requireContext(), "S-A SALVAT", Toast.LENGTH_SHORT).show();
     }
 
     protected void startLocationUpdates() {
@@ -503,17 +461,82 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
+    public class UsersAdapter extends ArrayAdapter<Cafenea> {
 
-    private void updateValuesFromBundle(Bundle savedInstanceState) {
-        if (savedInstanceState == null) {
-            return;
+
+        public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
+            super(context, 0, users);
         }
-        if (savedInstanceState.keySet().contains(REQUESTING_LOCATION_UPDATES_KEY)) {
-            requestingLocationUpdates = savedInstanceState.getBoolean(
-                    REQUESTING_LOCATION_UPDATES_KEY);
+
+        @NonNull
+        @Override
+
+        public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+
+            // Get the data item for this position
+
+            Cafenea user = getItem(position);
+
+            // Check if an existing view is being reused, otherwise inflate the view
+
+            if (convertView == null) {
+
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
+
+            }
+
+            // Lookup view for data population
+
+            final TextView user_name = convertView.findViewById(R.id.nume_text);
+            final TextView adress = convertView.findViewById(R.id.adresa_text);
+            Button Locatie = convertView.findViewById(R.id.buttonLocatie);
+
+            assert user != null;
+            user_name.setText(user.getName());
+            adress.setText(user.getAddress());
+
+            Locatie.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    //searchView.clearFocus();
+                    viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
+                    viewFlipper.showPrevious();
+                    for (int i = 0; i < rezultat.size(); i++) {
+                        if (user_name.getText().equals(rezultat.get(i).getName()) && adress.getText().equals(rezultat.get(i).getAddress())) {
+                            googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                    new LatLng(rezultat.get(i).getLatitude(),
+                                            rezultat.get(i).getLongitude()), 20));
+                            if (mrk.isEmpty()) {
+                                googleMap.addMarker(new MarkerOptions()
+                                        .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
+                                        .title(rezultat.get(i).getName())
+                                        .snippet(rezultat.get(i).getAddress())
+                                        .icon(BitmapDescriptorFactory.defaultMarker
+                                                (BitmapDescriptorFactory.HUE_AZURE)));
+                            } else {
+                                for (int x = 0; x < mrk.size(); x++) {
+                                    if (!new LatLng(rezultat.get(i).getLatitude(),
+                                            rezultat.get(i).getLongitude()).equals(mrk.get(i).getPosition())) {
+                                        googleMap.addMarker(new MarkerOptions()
+                                                .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
+                                                .title(rezultat.get(i).getName())
+                                                .snippet(rezultat.get(i).getAddress())
+                                                .icon(BitmapDescriptorFactory.defaultMarker
+                                                        (BitmapDescriptorFactory.HUE_AZURE)));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Log.e("apasat", "A mers");
+                }
+            });
+
+            // Return the completed view to render on screen
+
+            return convertView;
+
         }
-        UpdateUi();
-        Toast.makeText(HomeFragment.this.requireContext(), "S-A SALVAT", Toast.LENGTH_SHORT).show();
     }
 
 
