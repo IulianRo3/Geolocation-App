@@ -21,6 +21,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
@@ -71,7 +72,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     private LocationCallback locationCallback;
     Boolean requestingLocationUpdates = true;
     DatabaseReference databaseCafea;
-
+    Marker srch;
 
     ListView lv;
 
@@ -166,8 +167,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
                     }
 
-                    // Log.e("ceva",""+rezultat.size());
-                    //Toast.makeText(HomeFragment.this.requireContext(),rezultat.get(0).getName(),Toast.LENGTH_LONG).show();
                     cautare.clear();
 
                 }
@@ -180,40 +179,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
             }
         });
-
-
-
-
-
-
-
-
-
-
-
-       /* endAt(searchText + "\uf8ff");
-        FirebaseListOptions<Cafenea> options =
-                new FirebaseListOptions.Builder<Cafenea>()
-                        .setLayout(R.layout.list_layout)
-                        .setQuery(query, Cafenea.class)
-                        .setLifecycleOwner(this)
-                        .build();
-
-        myAdapter = new FirebaseListAdapter<Cafenea>(options) {
-            @Override
-            protected void populateView(@NonNull View v, @NonNull Cafenea model, int position) {
-                TextView user_name = (TextView) v.findViewById(R.id.nume_text);
-                TextView adress = (TextView) v.findViewById(R.id.adresa_text);
-
-
-                user_name.setText(model.getName());
-                adress.setText(model.getAddress());
-
-            }
-
-        };
-
-        */
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -222,6 +187,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         mrk = new ArrayList<>();
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+        OnBackPressedCallback callback = new OnBackPressedCallback(
+                true // default to enabled
+        ) {
+            @Override
+            public void handleOnBackPressed() {
+                srch.remove();
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(
+                getViewLifecycleOwner(), // LifecycleOwner
+                callback);
 
 
         mMapView = view.findViewById(R.id.mapView);
@@ -309,6 +285,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
         return view;
     }
+
 
     @Override
     public void onClick(View v) {
@@ -506,7 +483,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                     new LatLng(rezultat.get(i).getLatitude(),
                                             rezultat.get(i).getLongitude()), 20));
                             if (mrk.isEmpty()) {
-                                googleMap.addMarker(new MarkerOptions()
+                                srch = googleMap.addMarker(new MarkerOptions()
                                         .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
                                         .title(rezultat.get(i).getName())
                                         .snippet(rezultat.get(i).getAddress())
@@ -516,7 +493,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                 for (int x = 0; x < mrk.size(); x++) {
                                     if (!new LatLng(rezultat.get(i).getLatitude(),
                                             rezultat.get(i).getLongitude()).equals(mrk.get(i).getPosition())) {
-                                        googleMap.addMarker(new MarkerOptions()
+                                        srch = googleMap.addMarker(new MarkerOptions()
                                                 .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
                                                 .title(rezultat.get(i).getName())
                                                 .snippet(rezultat.get(i).getAddress())
