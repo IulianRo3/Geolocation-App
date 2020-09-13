@@ -39,6 +39,7 @@ import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -77,6 +78,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     ListView lv;
 
 
+
     private String getCityName(double latitude, double longitude) throws IOException {
         String myCity;
         Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
@@ -108,7 +110,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
 
                 }
-            }  // Log.e("ACCESARE ", "NU A MERS");
+            }
 
         }
 
@@ -183,6 +185,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
+
         databaseCafea = FirebaseDatabase.getInstance().getReference("Cafenea");
         mrk = new ArrayList<>();
 
@@ -234,13 +237,21 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
                 databaseCafea.addListenerForSingleValueEvent(valueEventListener);
                 fetchLastLocation();
-
+               /* CameraPosition cameraPosition = new CameraPosition.Builder().
+                        target(new LatLng(currentLocation.getLatitude(),currentLocation.getLongitude())).
+                        tilt(60).
+                        zoom(20).
+                        bearing(0).
+                        build();*/
                 googleMap.setMyLocationEnabled(true);
+                googleMap.getUiSettings().setMyLocationButtonEnabled(false);
 
 
             }
-        });
 
+        });
+        Button center = view.findViewById(R.id.Center);
+        center.setOnClickListener(this);
         searchView = view.findViewById(R.id.sv_location);
         updateValuesFromBundle(savedInstanceState);
 
@@ -306,6 +317,15 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 viewFlipper.showNext();
                 //searchView.clearFocus();
                 break;
+            }
+            case R.id.Center: {
+                CameraPosition cameraPosition = new CameraPosition.Builder().
+                        target(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())).
+                        tilt(0).
+                        zoom(16).
+                        bearing(0).
+                        build();
+                googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
             }
         }
     }
@@ -474,7 +494,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
             Locatie.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View view) {
-                    //searchView.clearFocus();
+                    if (srch != null) {
+                        srch.remove();
+                    }
                     viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
                     viewFlipper.showPrevious();
                     for (int i = 0; i < rezultat.size(); i++) {
