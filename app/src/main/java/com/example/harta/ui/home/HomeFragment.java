@@ -18,7 +18,6 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ViewFlipper;
 
 import androidx.activity.OnBackPressedCallback;
@@ -60,34 +59,26 @@ import java.util.Locale;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
+    private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     @SuppressLint("StaticFieldLeak")
     static ViewFlipper viewFlipper;
-    private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
-    public ArrayList<Marker> mrk;
-    public ArrayList<Cafenea> rezultat;
-    MapView mMapView;
-    private GoogleMap googleMap;
-    Location currentLocation;
-    FusedLocationProviderClient fusedLocationProviderClient;
-    private static final int REQUEST_CODE = 101;
-    private LocationCallback locationCallback;
-    Boolean requestingLocationUpdates = true;
+    public
+    ArrayList<Marker> mrk;
+    LocationCallback locationCallback;
+    ArrayList<Cafenea> rezultat;
     DatabaseReference databaseCafea;
     Marker srch;
-
     ListView lv;
-
-
-
-    private String getCityName(double latitude, double longitude) throws IOException {
-        String myCity;
-        Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
-        List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
-        myCity = addresses.get(0).getLocality();
-
-        return myCity;
-    }
-
+    TextView negasit;
+    MapView mMapView;
+    Location currentLocation;
+    FusedLocationProviderClient fusedLocationProviderClient;
+    Boolean requestingLocationUpdates = true;
+    //Variabile globale
+    private
+    GoogleMap googleMap;
+    private static final int REQUEST_CODE = 101;
+    //Functia ce ia markere din baza de date
     ValueEventListener valueEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
@@ -114,16 +105,23 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
         }
 
-
         @Override
         public void onCancelled(@NonNull DatabaseError error) {
-
         }
     };
 
+    //Functie Geocoder(JAVA SDK-Gratis) spune oras dupa coordonate
+    private String getCityName(double latitude, double longitude) throws IOException {
+        String myCity;
+        Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
+        List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
+        myCity = addresses.get(0).getLocality();
+
+        return myCity;
+    }
+
+    //Functia ce cauta in baza de date
     private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
-
-
         final ArrayList<Cafenea> cautare = new ArrayList<>();
         Query query = databaseCafea.orderByChild("name");
         query.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -132,15 +130,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 if (dataSnapshot.exists()) {
                     // dataSnapshot is the "issue" node with all children with id 0
                     for (DataSnapshot issue : dataSnapshot.getChildren()) {
-
                         try {
                             new Cafenea();
                             Cafenea caf;
                             caf = issue.getValue(Cafenea.class);
                             assert caf != null;
                             if (getCityName(caf.getLatitude(), caf.getLongitude()).equals(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
-
-
                                 if (cautare.size() <= 30) {
                                     cautare.add(issue.getValue(Cafenea.class));
 
@@ -151,26 +146,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                             if (cautare.get(i).getName().toLowerCase().contains(searchText)) {
                                                 rezultat.add(cautare.get(i));
                                                 //Log.e("ceva",""+rezultat.size());
-
-
                                             }
                                         }
                                         cautare.clear();
                                     }
-
-
                                 }
-
                             }
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
-
                     }
-
+                    if (rezultat.isEmpty()) {
+                        negasit.setVisibility(View.VISIBLE);
+                    } else {
+                        negasit.setVisibility(View.GONE);
+                    }
                     cautare.clear();
-
                 }
                 UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
                 lv.setAdapter(adapter);
@@ -178,11 +169,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-
             }
         });
     }
 
+    //De aici incepe aplicata.Locul unde se creeaza fragmentul cu toate utilitatile sale(Main)
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
 
@@ -190,6 +181,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         mrk = new ArrayList<>();
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+        //OnBackPressedCallBack - setare functie buton de back
         OnBackPressedCallback callback = new OnBackPressedCallback(
                 true // default to enabled
         ) {
@@ -215,7 +207,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             public void onLocationResult(LocationResult locationResult) {
             }
         };
-
+        fetchLastLocation();
         mMapView.onResume();
         try {
             MapsInitializer.initialize(requireActivity().getApplicationContext());
@@ -224,6 +216,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
         mMapView.getMapAsync(new OnMapReadyCallback() {
 
+            //Initializare harta
             @Override
             public void onMapReady(GoogleMap mMap) {
                 googleMap = mMap;
@@ -236,13 +229,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 }
 
                 databaseCafea.addListenerForSingleValueEvent(valueEventListener);
-                fetchLastLocation();
-               /* CameraPosition cameraPosition = new CameraPosition.Builder().
-                        target(new LatLng(currentLocation.getLatitude(),currentLocation.getLongitude())).
-                        tilt(60).
-                        zoom(20).
-                        bearing(0).
-                        build();*/
+
                 googleMap.setMyLocationEnabled(true);
                 googleMap.getUiSettings().setMyLocationButtonEnabled(false);
 
@@ -250,12 +237,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
 
         });
+
         Button center = view.findViewById(R.id.Center);
         center.setOnClickListener(this);
         searchView = view.findViewById(R.id.sv_location);
         updateValuesFromBundle(savedInstanceState);
 
-        searchView.setQueryHint(" ¯_(ツ)_/¯ ");
+        searchView.setQueryHint("Cauta ceva:");
 
         viewFlipper = view.findViewById(R.id.view_flipper);
         Button previous = view.findViewById(R.id.previous);
@@ -263,28 +251,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         Button next = view.findViewById(R.id.next);
         next.setOnClickListener(this);
 
+        negasit = view.findViewById(R.id.GasitNimic);
 
+        //Apelare functii de cautare
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 rezultat = new ArrayList<>();
-
                 String location = searchView.getQuery().toString().toLowerCase();
-                /*for(int i=0;i<mrk.size();i++){
-                    if(location.equals(mrk.get(i).getTitle())){
-                        try {
-                            getCityName(mrk.get(i).getPosition());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                }*/
-
                 firebaseUserSearch(location, currentLocation, databaseCafea);
-                rezultat.clear();
-
-
+                // rezultat.clear();
                 return false;
             }
 
@@ -293,29 +269,23 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 return false;
             }
         });
-
         return view;
     }
 
-
+    //Locul butoanelor
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.previous: {
-                //searchView.clearFocus();
                 viewFlipper.setInAnimation(HomeFragment.this.requireContext(), R.anim.right);
                 viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
                 viewFlipper.showPrevious();
-
-                //Toast.makeText(HomeFragment.this.requireContext(), "AAAAAAAAAAAAAA", Toast.LENGTH_SHORT).show();
                 break;
             }
             case R.id.next: {
                 viewFlipper.setInAnimation(HomeFragment.this.requireContext(), android.R.anim.slide_in_left);
                 viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), android.R.anim.slide_out_right);
-                //searchView.setIconified(false);
                 viewFlipper.showNext();
-                //searchView.clearFocus();
                 break;
             }
             case R.id.Center: {
@@ -330,9 +300,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
     SearchView searchView;
-    //private SettingsClient settingsClient;
-    //private LocationSettingsRequest locationSettingsRequest;
 
+    //Ultima ta locatie
     private void fetchLastLocation() {
         if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]
@@ -346,6 +315,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             public void onSuccess(Location location) {
                 if (task.isSuccessful() && task.getResult() != null) {
                     currentLocation = task.getResult();
+
                     googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
                             new LatLng(currentLocation.getLatitude(),
                                     currentLocation.getLongitude()), 15));
@@ -366,6 +336,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     }
 
+    //In caz ca se schimba limba/se roteste sa nu se distruga appul.E apelat in main(CreateView)
     private void updateValuesFromBundle(Bundle savedInstanceState) {
         if (savedInstanceState == null) {
             return;
@@ -375,9 +346,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     REQUESTING_LOCATION_UPDATES_KEY);
         }
         UpdateUi();
-        // Toast.makeText(HomeFragment.this.requireContext(), "S-A SALVAT", Toast.LENGTH_SHORT).show();
+
     }
 
+    //Face update uri in timp real
     protected void startLocationUpdates() {
         LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -397,7 +369,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     }
 
-
+    //------------------------------------------------------------------------------------------------------------------------
     @Override
     public void onResume() {
         super.onResume();
@@ -407,20 +379,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
-    /*    Metoda ceopreste updatarea locatiei dar in plus va da la user(bun de debug un mesaj instiintandu l ca nu i se mai updateaza
-    de asemenea in situatia de fata T Task<Void> task este folosit pt a sincroniza textul cu operatia
-    private void stopLocationUpdates() {
-        fusedLocationProviderClient.removeLocationUpdates(locationCallback).addOnCompleteListener
-                ((Activity) HomeFragment.this.requireContext(),new OnCompleteListener<Void>(){
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        Toast.makeText(HomeFragment.this.requireContext(), "Location updates stopped!", Toast.LENGTH_SHORT).show();}
-                });
-    }*/
-
     private void stopLocationUpdates() {
         fusedLocationProviderClient.removeLocationUpdates(locationCallback);
-        Toast.makeText(HomeFragment.this.requireContext(), "nu!", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -457,36 +417,30 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             currentLocation.getLatitude();
         }
     }
+//--------------------------------------------------------------------------------------------------------------------
 
+    //Format afisare rezultate cautare
     public class UsersAdapter extends ArrayAdapter<Cafenea> {
-
-
         public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
             super(context, 0, users);
         }
 
         @NonNull
         @Override
-
+        //Creare butoane si elemente de afisare
         public View getView(int position, View convertView, @NonNull ViewGroup parent) {
-
             // Get the data item for this position
-
             Cafenea user = getItem(position);
-
             // Check if an existing view is being reused, otherwise inflate the view
-
             if (convertView == null) {
-
                 convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
-
             }
-
             // Lookup view for data population
 
             final TextView user_name = convertView.findViewById(R.id.nume_text);
             final TextView adress = convertView.findViewById(R.id.adresa_text);
             Button Locatie = convertView.findViewById(R.id.buttonLocatie);
+
 
             assert user != null;
             user_name.setText(user.getName());
@@ -526,20 +480,29 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                             }
                         }
                     }
-
-                    Log.e("apasat", "A mers");
                 }
             });
-
             // Return the completed view to render on screen
-
             return convertView;
-
         }
     }
-
-
 }
+
+
+//ZONA COMENTARII:
+
+/*    Metoda ceopreste updatarea locatiei dar in plus va da la user(bun de debug un mesaj instiintandu l ca nu i se mai updateaza
+    de asemenea in situatia de fata T Task<Void> task este folosit pt a sincroniza textul cu operatia
+    private void stopLocationUpdates() {
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback).addOnCompleteListener
+                ((Activity) HomeFragment.this.requireContext(),new OnCompleteListener<Void>(){
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        Toast.makeText(HomeFragment.this.requireContext(), "Location updates stopped!", Toast.LENGTH_SHORT).show();}
+                });
+    }*/
+
+
 
 /*public void printtojson(ArrayList<Marker> mrk) {
 
@@ -568,6 +531,4 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
-
     }*/

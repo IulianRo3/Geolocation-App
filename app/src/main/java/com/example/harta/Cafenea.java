@@ -8,7 +8,6 @@ public class Cafenea {
     String name;
 
     public Cafenea() {
-
     }
 
     public Cafenea(String Address, Double Latitude, Double Longitude, String Id, String Name) {
