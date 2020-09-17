@@ -134,6 +134,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
     Boolean requestingLocationUpdates = true;
+    CameraPosition position;
+    CameraPosition selfPos;
+    MapStateManager mgr;
     //Variabile globale
     private
     GoogleMap googleMap;
@@ -165,7 +168,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         ) {
             @Override
             public void handleOnBackPressed() {
-                srch.remove();
+                if (srch != null) {
+                    srch.remove();
+                } else {
+                    viewFlipper.showNext();
+                }
             }
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(
@@ -186,8 +193,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
         };
         new Thread(thr).start();
-        final MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
-        final CameraPosition position = mgr.getSavedCameraPosition();
+        mgr = new MapStateManager(HomeFragment.this.requireContext());
+
         if (currentLocation == null) {
             mMapView.onResume();
             try {
@@ -224,7 +231,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                                 new Thread(thr).start();
                                             }
 
-                                        }, 1000);
+                                        }, 500);
                                         databaseCafea.addListenerForSingleValueEvent(valueEventListener);
 
                                     } else {
@@ -267,7 +274,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         next.setOnClickListener(this);
 
         negasit = view.findViewById(R.id.GasitNimic);
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                // Do something after 5s = 5000ms
 
+
+            }
+
+        }, 500);
         //Apelare functii de cautare
 
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
@@ -344,6 +360,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         super.onPause();
         mMapView.onPause();
         MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
+        position = mgr.getSavedCameraPosition();
+        //Log.e("Locatie salvata",""+position.target);
         if (googleMap != null) {
             mgr.saveMapState(googleMap);
             Toast.makeText(HomeFragment.this.requireContext(), "Map State has been save?", Toast.LENGTH_SHORT).show();
@@ -383,9 +401,26 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public void onResume() {
         super.onResume();
         mMapView.onResume();
+        if (position == null) {
+            position = mgr.getSavedCameraPosition();
+        }
+
         if (requestingLocationUpdates) {
             startLocationUpdates();
         }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        position = null;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        position = null;
+
     }
 
     private void stopLocationUpdates() {
@@ -457,6 +492,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public void onDestroy() {
         super.onDestroy();
         mMapView.onDestroy();
+        position = selfPos;
+        //Log.e("Locatie salvata",""+selfPos.target);
+        Toast.makeText(HomeFragment.this.requireContext(), "Position is null", Toast.LENGTH_SHORT).show();
+
     }
 
     @Override
@@ -538,6 +577,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             Locatie.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View view) {
                     if (srch != null) {
+                        mrk.clear();
                         srch.remove();
                     }
                     viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
@@ -555,17 +595,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                         .icon(BitmapDescriptorFactory.defaultMarker
                                                 (BitmapDescriptorFactory.HUE_AZURE)));
                             } else {
-                                for (int x = 0; x < mrk.size(); x++) {
-                                    if (!new LatLng(rezultat.get(i).getLatitude(),
-                                            rezultat.get(i).getLongitude()).equals(mrk.get(i).getPosition())) {
-                                        srch = googleMap.addMarker(new MarkerOptions()
+
+                                srch = googleMap.addMarker(new MarkerOptions()
                                                 .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
                                                 .title(rezultat.get(i).getName())
                                                 .snippet(rezultat.get(i).getAddress())
                                                 .icon(BitmapDescriptorFactory.defaultMarker
                                                         (BitmapDescriptorFactory.HUE_AZURE)));
-                                    }
-                                }
+
                             }
                         }
                     }
