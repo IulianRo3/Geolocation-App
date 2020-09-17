@@ -8,6 +8,7 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -18,6 +19,7 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ViewFlipper;
 
 import androidx.activity.OnBackPressedCallback;
@@ -26,12 +28,14 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.harta.Cafenea;
+import com.example.harta.MapStateManager;
 import com.example.harta.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
@@ -58,7 +62,63 @@ import java.util.List;
 import java.util.Locale;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
+    LocationThread thr = new LocationThread();
+    //Functia ce ia markere din baza de date
+    ValueEventListener valueEventListener = new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            if (currentLocation == null) {
+                mrk.clear();
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if (currentLocation != null) {
+                    if (dataSnapshot.exists()) {
+                        Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                        for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                            Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
+                            assert cafenea != null;
+                            if (cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
+                                if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                                    mrk.add(googleMap.addMarker(new MarkerOptions()
+                                            .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                            .title(cafenea.getName())
+                                            .snippet(cafenea.getAddress())
+                                            .icon(BitmapDescriptorFactory.defaultMarker
+                                                    (BitmapDescriptorFactory.HUE_AZURE))));
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                mrk.clear();
+                if (dataSnapshot.exists()) {
+                    Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                    for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                        Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
+                        assert cafenea != null;
+                        if (cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
+                            if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                                mrk.add(googleMap.addMarker(new MarkerOptions()
+                                        .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                        .title(cafenea.getName())
+                                        .snippet(cafenea.getAddress())
+                                        .icon(BitmapDescriptorFactory.defaultMarker
+                                                (BitmapDescriptorFactory.HUE_AZURE))));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
+        @Override
+        public void onCancelled(@NonNull DatabaseError error) {
+        }
+    };
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     @SuppressLint("StaticFieldLeak")
     static ViewFlipper viewFlipper;
@@ -78,37 +138,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     private
     GoogleMap googleMap;
     private static final int REQUEST_CODE = 101;
-    //Functia ce ia markere din baza de date
-    ValueEventListener valueEventListener = new ValueEventListener() {
-        @Override
-        public void onDataChange(DataSnapshot dataSnapshot) {
-            mrk.clear();
-            if (dataSnapshot.exists()) {
-                Log.e("Count ", "" + dataSnapshot.getChildrenCount());
-                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
-                    Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
-                    assert cafenea != null;
-                    if (cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
-                        if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
-                            mrk.add(googleMap.addMarker(new MarkerOptions()
-                                    .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
-                                    .title(cafenea.getName())
-                                    .snippet(cafenea.getAddress())
-                                    .icon(BitmapDescriptorFactory.defaultMarker
-                                            (BitmapDescriptorFactory.HUE_AZURE))));
-                        }
-                    }
-
-
-                }
-            }
-
-        }
-
-        @Override
-        public void onCancelled(@NonNull DatabaseError error) {
-        }
-    };
+    SearchView searchView;
 
     //Functie Geocoder(JAVA SDK-Gratis) spune oras dupa coordonate
     private String getCityName(double latitude, double longitude) throws IOException {
@@ -116,62 +146,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
         List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
         myCity = addresses.get(0).getLocality();
-
         return myCity;
     }
 
-    //Functia ce cauta in baza de date
-    private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
-        final ArrayList<Cafenea> cautare = new ArrayList<>();
-        Query query = databaseCafea.orderByChild("name");
-        query.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    // dataSnapshot is the "issue" node with all children with id 0
-                    for (DataSnapshot issue : dataSnapshot.getChildren()) {
-                        try {
-                            new Cafenea();
-                            Cafenea caf;
-                            caf = issue.getValue(Cafenea.class);
-                            assert caf != null;
-                            if (getCityName(caf.getLatitude(), caf.getLongitude()).equals(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
-                                if (cautare.size() <= 30) {
-                                    cautare.add(issue.getValue(Cafenea.class));
-
-                                    //Log.e("ceva",""+cautare.size());
-                                    if (cautare.size() == 30) {
-
-                                        for (int i = 0; i < cautare.size(); i++) {
-                                            if (cautare.get(i).getName().toLowerCase().contains(searchText)) {
-                                                rezultat.add(cautare.get(i));
-                                                //Log.e("ceva",""+rezultat.size());
-                                            }
-                                        }
-                                        cautare.clear();
-                                    }
-                                }
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    if (rezultat.isEmpty()) {
-                        negasit.setVisibility(View.VISIBLE);
-                    } else {
-                        negasit.setVisibility(View.GONE);
-                    }
-                    cautare.clear();
-                }
-                UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
-                lv.setAdapter(adapter);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-            }
-        });
-    }
+    private Handler mainHandler = new Handler();
 
     //De aici incepe aplicata.Locul unde se creeaza fragmentul cu toate utilitatile sale(Main)
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -207,37 +185,74 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             public void onLocationResult(LocationResult locationResult) {
             }
         };
-        fetchLastLocation();
-        mMapView.onResume();
-        try {
-            MapsInitializer.initialize(requireActivity().getApplicationContext());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        mMapView.getMapAsync(new OnMapReadyCallback() {
-
-            //Initializare harta
-            @Override
-            public void onMapReady(GoogleMap mMap) {
-                googleMap = mMap;
-
-                // For showing a move to my location button
-                if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    requestPermissions(new String[]
-                            {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
-                    return;
-                }
-
-                databaseCafea.addListenerForSingleValueEvent(valueEventListener);
-
-                googleMap.setMyLocationEnabled(true);
-                googleMap.getUiSettings().setMyLocationButtonEnabled(false);
-
-
+        new Thread(thr).start();
+        final MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
+        final CameraPosition position = mgr.getSavedCameraPosition();
+        if (currentLocation == null) {
+            mMapView.onResume();
+            try {
+                MapsInitializer.initialize(requireActivity().getApplicationContext());
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+            Runnable mapa = new Runnable() {
+                @Override
+                public void run() {
+                    mainHandler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            mMapView.getMapAsync(new OnMapReadyCallback() {
+                                //Initializare harta
+                                @Override
+                                public void onMapReady(final GoogleMap mMap) {
+                                    Log.e("Harta", "a aparut");
+                                    googleMap = mMap;
 
-        });
+                                    // For showing a move to my location button
+                                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                        requestPermissions(new String[]
+                                                {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
+                                        return;
+                                    }
+                                    // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+                                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                                        final Handler handler = new Handler();
+                                        handler.postDelayed(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                // Do something after 5s = 5000ms
+                                                new Thread(thr).start();
+                                            }
 
+                                        }, 1000);
+                                        databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+
+                                    } else {
+                                        Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
+                                    }
+
+                                    googleMap.setMyLocationEnabled(true);
+                                    googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+
+                                    if (position != null) {
+                                        CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
+                                        Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
+                                        googleMap.moveCamera(update);
+
+                                        googleMap.setMapType(mgr.getSavedMapType());
+                                    }
+
+                                }
+
+                            });
+                        }
+                    });
+                }
+            };
+
+            Thread hart = new Thread(mapa);
+            hart.start();
+        }
         Button center = view.findViewById(R.id.Center);
         center.setOnClickListener(this);
         searchView = view.findViewById(R.id.sv_location);
@@ -254,21 +269,27 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         negasit = view.findViewById(R.id.GasitNimic);
 
         //Apelare functii de cautare
+
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 rezultat = new ArrayList<>();
-                String location = searchView.getQuery().toString().toLowerCase();
-                firebaseUserSearch(location, currentLocation, databaseCafea);
+                UserSearchThread usrsrch = new UserSearchThread();
+                if (currentLocation != null) {
+                    new Thread(usrsrch).start();
+                } else {
+                    Toast.makeText(HomeFragment.this.requireContext(), "Cannot detect user location", Toast.LENGTH_SHORT).show();
+                }
+
                 // rezultat.clear();
                 return false;
             }
-
             @Override
             public boolean onQueryTextChange(String newText) {
                 return false;
             }
         });
+
         return view;
     }
 
@@ -289,54 +310,51 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 break;
             }
             case R.id.Center: {
-                CameraPosition cameraPosition = new CameraPosition.Builder().
-                        target(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())).
-                        tilt(0).
-                        zoom(16).
-                        bearing(0).
-                        build();
-                googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-            }
-        }
-    }
-    SearchView searchView;
-
-    //Ultima ta locatie
-    private void fetchLastLocation() {
-        if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]
-                    {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
-            return;
-        }
-
-        final Task<Location> task = fusedLocationProviderClient.getLastLocation();
-        task.addOnSuccessListener(new OnSuccessListener<Location>() {
-            @Override
-            public void onSuccess(Location location) {
-                if (task.isSuccessful() && task.getResult() != null) {
-                    currentLocation = task.getResult();
-
-                    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                            new LatLng(currentLocation.getLatitude(),
-                                    currentLocation.getLongitude()), 15));
-
-
+                if (currentLocation != null) {
+                    CameraPosition cameraPosition = new CameraPosition.Builder().
+                            target(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())).
+                            tilt(0).
+                            zoom(16).
+                            bearing(0).
+                            build();
+                    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                } else {
+                    Toast.makeText(HomeFragment.this.getContext(), "Can't find location", Toast.LENGTH_SHORT).show();
                 }
             }
-        })
+        }
+    }
 
+    //Face update uri in timp real
+    @SuppressLint("MissingPermission")
+    protected void startLocationUpdates() {
+        LocationRequest mLocationRequest = new LocationRequest();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        /* 60 secs */
+        long UPDATE_INTERVAL = 60000;
+        mLocationRequest.setInterval(UPDATE_INTERVAL);
+        /* 5 secs */
+        long FASTEST_INTERVAL = 5000;
+        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
+        fusedLocationProviderClient.requestLocationUpdates(mLocationRequest, locationCallback, Looper.getMainLooper());
+    }
 
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.d("MapDemoActivity", "Error trying to get last GPS location");
-                        e.printStackTrace();
-                    }
-                });
+    @Override
+    public void onPause() {
+        super.onPause();
+        mMapView.onPause();
+        MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
+        if (googleMap != null) {
+            mgr.saveMapState(googleMap);
+            Toast.makeText(HomeFragment.this.requireContext(), "Map State has been save?", Toast.LENGTH_SHORT).show();
+            stopLocationUpdates();
+        }
 
     }
 
+
     //In caz ca se schimba limba/se roteste sa nu se distruga appul.E apelat in main(CreateView)
+
     private void updateValuesFromBundle(Bundle savedInstanceState) {
         if (savedInstanceState == null) {
             return;
@@ -349,27 +367,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     }
 
-    //Face update uri in timp real
-    protected void startLocationUpdates() {
-        LocationRequest mLocationRequest = new LocationRequest();
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        /* 60 secs */
-        long UPDATE_INTERVAL = 60000;
-        mLocationRequest.setInterval(UPDATE_INTERVAL);
-        /* 5 secs */
-        long FASTEST_INTERVAL = 5000;
-        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
-        if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]
-                    {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
-            return;
+    public void UpdateUi() {
+        if (isVisible()) {
+            if (null != currentLocation) {
+                currentLocation.getLongitude();
+                currentLocation.getLatitude();
+            }
+
         }
-        fusedLocationProviderClient.requestLocationUpdates(mLocationRequest, locationCallback, Looper.getMainLooper());
-
-
     }
 
     //------------------------------------------------------------------------------------------------------------------------
+
     @Override
     public void onResume() {
         super.onResume();
@@ -383,11 +392,65 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         fusedLocationProviderClient.removeLocationUpdates(locationCallback);
     }
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        mMapView.onPause();
-        stopLocationUpdates();
+    public class UserSearchThread implements Runnable {
+        //Functia ce cauta in baza de date
+        private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
+            final ArrayList<Cafenea> cautare = new ArrayList<>();
+            Query query = databaseCafea.orderByChild("name");
+            query.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    if (dataSnapshot.exists()) {
+                        // dataSnapshot is the "issue" node with all children with id 0
+                        for (DataSnapshot issue : dataSnapshot.getChildren()) {
+                            try {
+                                new Cafenea();
+                                Cafenea caf;
+                                caf = issue.getValue(Cafenea.class);
+                                assert caf != null;
+                                if (caf.getAddress().contains(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
+                                    if (cautare.size() <= 30) {
+                                        cautare.add(issue.getValue(Cafenea.class));
+                                        //Log.e("ceva",""+cautare.size());
+                                        if (cautare.size() == 30) {
+                                            for (int i = 0; i < cautare.size(); i++) {
+                                                //Log.e("cafenea",""+cautare.get(i).getName());
+                                                if (cautare.get(i).getName().toLowerCase().contains(searchText)) {
+                                                    rezultat.add(cautare.get(i));
+                                                    //Log.e("cautare", ""+rezultat.get(0).getName());
+                                                    //Log.e("ceva",""+rezultat.size());
+                                                }
+                                            }
+                                            cautare.clear();
+                                        }
+                                    }
+                                }
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        if (rezultat.isEmpty()) {
+                            negasit.setVisibility(View.VISIBLE);
+                        } else {
+                            negasit.setVisibility(View.GONE);
+                        }
+                        cautare.clear();
+                    }
+                    UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                    lv.setAdapter(adapter);
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                }
+            });
+        }
+
+        @Override
+        public void run() {
+            String location = searchView.getQuery().toString().toLowerCase();
+            firebaseUserSearch(location, currentLocation, databaseCafea);
+        }
     }
 
     @Override
@@ -411,12 +474,40 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         super.onSaveInstanceState(savedInstanceState);
     }
 
-    public void UpdateUi() {
-        if (isVisible()) {
-            currentLocation.getLongitude();
-            currentLocation.getLatitude();
+    public class LocationThread implements Runnable {
+        //Ultima ta locatie
+        private void fetchLastLocation() {
+
+            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
+
+            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
+            task.addOnSuccessListener(new OnSuccessListener<Location>() {
+                @Override
+                public void onSuccess(Location location) {
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        currentLocation = task.getResult();
+                        Log.e("Locatie", "A mers");
+                    /*googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                            new LatLng(currentLocation.getLatitude(),
+                                    currentLocation.getLongitude()), 15));*/
+                    }
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.d("MapDemoActivity", "Error trying to get last GPS location");
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        @Override
+        public void run() {
+            fetchLastLocation();
         }
     }
+
+
 //--------------------------------------------------------------------------------------------------------------------
 
     //Format afisare rezultate cautare
@@ -430,18 +521,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         //Creare butoane si elemente de afisare
         public View getView(int position, View convertView, @NonNull ViewGroup parent) {
             // Get the data item for this position
-            Cafenea user = getItem(position);
+            final Cafenea user = getItem(position);
             // Check if an existing view is being reused, otherwise inflate the view
             if (convertView == null) {
                 convertView = LayoutInflater.from(getContext()).inflate(R.layout.list_layout, parent, false);
             }
             // Lookup view for data population
-
-            final TextView user_name = convertView.findViewById(R.id.nume_text);
-            final TextView adress = convertView.findViewById(R.id.adresa_text);
-            Button Locatie = convertView.findViewById(R.id.buttonLocatie);
-
-
+            final View finalConvertView = convertView;
+            final TextView user_name = finalConvertView.findViewById(R.id.nume_text);
+            final TextView adress = finalConvertView.findViewById(R.id.adresa_text);
+            Button Locatie = finalConvertView.findViewById(R.id.buttonLocatie);
             assert user != null;
             user_name.setText(user.getName());
             adress.setText(user.getAddress());
@@ -486,12 +575,37 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             return convertView;
         }
     }
+
 }
-
-
 //ZONA COMENTARII:
 
-/*    Metoda ceopreste updatarea locatiei dar in plus va da la user(bun de debug un mesaj instiintandu l ca nu i se mai updateaza
+/* googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                new LatLng(currentLocation.getLatitude(),
+                        currentLocation.getLongitude()), 15));*/
+/*
+public CameraPosition savePos(){
+    final CameraPosition[] test = new CameraPosition[1];
+    googleMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
+        @Override
+        public void onCameraMove() {
+
+
+           test[0] = googleMap.getCameraPosition();
+
+        }
+    });
+    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(test[0]));
+
+    return test[0];
+}
+public void SetPos(CameraPosition LastViewed){
+        LastViewed = savePos();
+
+}
+ */
+
+
+/*    Metoda ce opreste updatarea locatiei dar in plus va da la user(bun de debug un mesaj instiintandu l ca nu i se mai updateaza
     de asemenea in situatia de fata T Task<Void> task este folosit pt a sincroniza textul cu operatia
     private void stopLocationUpdates() {
         fusedLocationProviderClient.removeLocationUpdates(locationCallback).addOnCompleteListener
