@@ -127,16 +127,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     LocationCallback locationCallback;
     ArrayList<Cafenea> rezultat;
     DatabaseReference databaseCafea;
-    Marker srch;
+    Marker srch = null;
     ListView lv;
     TextView negasit;
     MapView mMapView;
     Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
     Boolean requestingLocationUpdates = true;
-    CameraPosition position;
-    CameraPosition selfPos;
-    MapStateManager mgr;
     //Variabile globale
     private
     GoogleMap googleMap;
@@ -152,27 +149,23 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         return myCity;
     }
 
-    private Handler mainHandler = new Handler();
-
     //De aici incepe aplicata.Locul unde se creeaza fragmentul cu toate utilitatile sale(Main)
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
-
+        Log.e("CREATE", "PIZZA CreateView ID" + Thread.currentThread().getId());
         databaseCafea = FirebaseDatabase.getInstance().getReference("Cafenea");
         mrk = new ArrayList<>();
 
         View view = inflater.inflate(R.layout.fragment_home, container, false);
+
         //OnBackPressedCallBack - setare functie buton de back
         OnBackPressedCallback callback = new OnBackPressedCallback(
                 true // default to enabled
         ) {
             @Override
             public void handleOnBackPressed() {
-                if (srch != null) {
-                    srch.remove();
-                } else {
-                    viewFlipper.showNext();
-                }
+                srch.remove();
+
             }
         };
         requireActivity().getOnBackPressedDispatcher().addCallback(
@@ -193,8 +186,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
         };
         new Thread(thr).start();
-        mgr = new MapStateManager(HomeFragment.this.requireContext());
-
+        final MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
+        final CameraPosition position = mgr.getSavedCameraPosition();
         if (currentLocation == null) {
             mMapView.onResume();
             try {
@@ -202,64 +195,44 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            Runnable mapa = new Runnable() {
+            mMapView.getMapAsync(new OnMapReadyCallback() {
+                //Initializare harta
                 @Override
-                public void run() {
-                    mainHandler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            mMapView.getMapAsync(new OnMapReadyCallback() {
-                                //Initializare harta
-                                @Override
-                                public void onMapReady(final GoogleMap mMap) {
-                                    Log.e("Harta", "a aparut");
-                                    googleMap = mMap;
+                public void onMapReady(final GoogleMap mMap) {
+                    Log.e("Harta", "a aparut");
+                    googleMap = mMap;
+                    // For showing a move to my location button
+                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(new String[]
+                                {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
+                        return;
+                    }
+                    // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        final Handler handler = new Handler();
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {// Do something after 5s = 5000ms
+                                new Thread(thr).start();
+                            }
 
-                                    // For showing a move to my location button
-                                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                                        requestPermissions(new String[]
-                                                {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
-                                        return;
-                                    }
-                                    // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-                                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                                        final Handler handler = new Handler();
-                                        handler.postDelayed(new Runnable() {
-                                            @Override
-                                            public void run() {
-                                                // Do something after 5s = 5000ms
-                                                new Thread(thr).start();
-                                            }
-
-                                        }, 500);
-                                        databaseCafea.addListenerForSingleValueEvent(valueEventListener);
-
-                                    } else {
-                                        Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
-                                    }
-
-                                    googleMap.setMyLocationEnabled(true);
-                                    googleMap.getUiSettings().setMyLocationButtonEnabled(false);
-
-                                    if (position != null) {
-                                        CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
-                                        Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
-                                        googleMap.moveCamera(update);
-
-                                        googleMap.setMapType(mgr.getSavedMapType());
-                                    }
-
-                                }
-
-                            });
-                        }
-                    });
+                        }, 1000);
+                        databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+                    } else {
+                        Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
+                    }
+                    googleMap.setMyLocationEnabled(true);
+                    googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+                    if (position != null) {
+                        CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
+                        Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
+                        googleMap.moveCamera(update);
+                        googleMap.setMapType(mgr.getSavedMapType());
+                    }
                 }
-            };
-
-            Thread hart = new Thread(mapa);
-            hart.start();
+            });
         }
+
         Button center = view.findViewById(R.id.Center);
         center.setOnClickListener(this);
         searchView = view.findViewById(R.id.sv_location);
@@ -274,37 +247,36 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         next.setOnClickListener(this);
 
         negasit = view.findViewById(R.id.GasitNimic);
-        final Handler handler = new Handler();
-        handler.postDelayed(new Runnable() {
+
+        //Apelare functii de cautare
+        Runnable QueryTxt = new Runnable() {
             @Override
             public void run() {
-                // Do something after 5s = 5000ms
+                Log.e("QueryTXT", "PIZZA  QUEYTXT CU ID" + Thread.currentThread().getId());
+                searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                    @Override
+                    public boolean onQueryTextSubmit(String query) {
+                        rezultat = new ArrayList<>();
+                        UserSearchThread usrsrch = new UserSearchThread();
+                        if (currentLocation != null) {
+                            new Thread(usrsrch).start();
+                        } else {
+                            Toast.makeText(HomeFragment.this.requireContext(), "Cannot detect user location", Toast.LENGTH_SHORT).show();
+                        }
 
+                        // rezultat.clear();
+                        return false;
+                    }
 
+                    @Override
+                    public boolean onQueryTextChange(String newText) {
+                        return false;
+                    }
+                });
             }
-
-        }, 500);
-        //Apelare functii de cautare
-
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                rezultat = new ArrayList<>();
-                UserSearchThread usrsrch = new UserSearchThread();
-                if (currentLocation != null) {
-                    new Thread(usrsrch).start();
-                } else {
-                    Toast.makeText(HomeFragment.this.requireContext(), "Cannot detect user location", Toast.LENGTH_SHORT).show();
-                }
-
-                // rezultat.clear();
-                return false;
-            }
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                return false;
-            }
-        });
+        };
+        Thread qrytxt = new Thread(QueryTxt);
+        qrytxt.start();
 
         return view;
     }
@@ -360,8 +332,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         super.onPause();
         mMapView.onPause();
         MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
-        position = mgr.getSavedCameraPosition();
-        //Log.e("Locatie salvata",""+position.target);
         if (googleMap != null) {
             mgr.saveMapState(googleMap);
             Toast.makeText(HomeFragment.this.requireContext(), "Map State has been save?", Toast.LENGTH_SHORT).show();
@@ -401,26 +371,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public void onResume() {
         super.onResume();
         mMapView.onResume();
-        if (position == null) {
-            position = mgr.getSavedCameraPosition();
-        }
-
         if (requestingLocationUpdates) {
             startLocationUpdates();
         }
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        position = null;
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        position = null;
-
     }
 
     private void stopLocationUpdates() {
@@ -431,6 +384,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         //Functia ce cauta in baza de date
         private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
             final ArrayList<Cafenea> cautare = new ArrayList<>();
+
             Query query = databaseCafea.orderByChild("name");
             query.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
@@ -485,6 +439,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         public void run() {
             String location = searchView.getQuery().toString().toLowerCase();
             firebaseUserSearch(location, currentLocation, databaseCafea);
+            Log.e("Firebase", "PIZZA FIREBASE ID" + Thread.currentThread().getId());
         }
     }
 
@@ -492,10 +447,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public void onDestroy() {
         super.onDestroy();
         mMapView.onDestroy();
-        position = selfPos;
-        //Log.e("Locatie salvata",""+selfPos.target);
-        Toast.makeText(HomeFragment.this.requireContext(), "Position is null", Toast.LENGTH_SHORT).show();
-
     }
 
     @Override
@@ -543,6 +494,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         @Override
         public void run() {
             fetchLastLocation();
+            Log.e("FetchLastLoc", "PIZZA LASTLOCATION ID" + Thread.currentThread().getId());
         }
     }
 
@@ -577,7 +529,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             Locatie.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View view) {
                     if (srch != null) {
-                        mrk.clear();
                         srch.remove();
                     }
                     viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
@@ -587,23 +538,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                             googleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
                                     new LatLng(rezultat.get(i).getLatitude(),
                                             rezultat.get(i).getLongitude()), 20));
-                            if (mrk.isEmpty()) {
-                                srch = googleMap.addMarker(new MarkerOptions()
-                                        .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
-                                        .title(rezultat.get(i).getName())
-                                        .snippet(rezultat.get(i).getAddress())
-                                        .icon(BitmapDescriptorFactory.defaultMarker
-                                                (BitmapDescriptorFactory.HUE_AZURE)));
-                            } else {
-
-                                srch = googleMap.addMarker(new MarkerOptions()
-                                                .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
-                                                .title(rezultat.get(i).getName())
-                                                .snippet(rezultat.get(i).getAddress())
-                                                .icon(BitmapDescriptorFactory.defaultMarker
-                                                        (BitmapDescriptorFactory.HUE_AZURE)));
-
-                            }
+                            srch = googleMap.addMarker(new MarkerOptions()
+                                    .position(new LatLng(rezultat.get(i).getLatitude(), rezultat.get(i).getLongitude()))
+                                    .title(rezultat.get(i).getName())
+                                    .snippet(rezultat.get(i).getAddress())
+                                    .icon(BitmapDescriptorFactory.defaultMarker
+                                            (BitmapDescriptorFactory.HUE_AZURE)));
                         }
                     }
                 }
