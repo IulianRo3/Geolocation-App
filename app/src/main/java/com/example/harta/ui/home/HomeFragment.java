@@ -96,7 +96,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             } else {
                 mrk.clear();
                 if (dataSnapshot.exists()) {
-                    Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                    //Log.e("Count ", "" + dataSnapshot.getChildrenCount());
                     for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
                         Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
                         assert cafenea != null;
@@ -166,7 +166,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         ) {
             @Override
             public void handleOnBackPressed() {
-                srch.remove();
+                if (srch != null) {
+                    srch.remove();
+                } else {
+                    viewFlipper.showPrevious();
+                }
 
             }
         };
@@ -210,38 +214,46 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     // Obtain the SupportMapFragment and get notified when the map is ready to be used.
                     if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                         new Thread(thr).start();
+                        if (currentLocation != null) {
+                            delay = 0;
+                        }
+                        final Handler handler = new Handler();
+                        handler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {// Do something after 5s = 5000ms
+                                if (mgr.getSavedCameraPosition() != null && mgr.getSavedCameraPosition().target.latitude <= currentLocation.getLatitude() + 0.25 && mgr.getSavedCameraPosition().target.latitude >= currentLocation.getLatitude() - 0.25 && mgr.getSavedCameraPosition().target.longitude <= currentLocation.getLongitude() + 0.25 && mgr.getSavedCameraPosition().target.longitude >= currentLocation.getLongitude() - 0.25) {
+                                    CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
+                                    Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
+                                    googleMap.moveCamera(update);
+                                    googleMap.setMapType(mgr.getSavedMapType());
+                                } else {
+                                    googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                                            new LatLng(currentLocation.getLatitude(),
+                                                    currentLocation.getLongitude()), 15));
+                                }
+                            }
 
-                        databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+                        }, delay);
+                        //databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+                        googleMap.setMyLocationEnabled(true);
+
                     } else {
                         Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
                     }
-                    googleMap.setMyLocationEnabled(true);
-                    googleMap.getUiSettings().setMyLocationButtonEnabled(false);
-                    if (currentLocation != null) {
-                        delay = 0;
-                    }
-                    final Handler handler = new Handler();
-                    handler.postDelayed(new Runnable() {
-                        @Override
-                        public void run() {// Do something after 5s = 5000ms
-                            if (mgr.getSavedCameraPosition() != null && mgr.getSavedCameraPosition().target.latitude <= currentLocation.getLatitude() + 0.25 && mgr.getSavedCameraPosition().target.latitude >= currentLocation.getLatitude() - 0.25 && mgr.getSavedCameraPosition().target.longitude <= currentLocation.getLongitude() + 0.25 && mgr.getSavedCameraPosition().target.longitude >= currentLocation.getLongitude() - 0.25) {
-                                CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
-                                Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
-                                googleMap.moveCamera(update);
-                                googleMap.setMapType(mgr.getSavedMapType());
-                            } else {
-                                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                                        new LatLng(currentLocation.getLatitude(),
-                                                currentLocation.getLongitude()), 15));
-                            }
-                        }
 
-                    }, delay);
+                    googleMap.getUiSettings().setMyLocationButtonEnabled(false);
 
 
                 }
             });
         }
+        if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+
+        } else {
+            Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
+        }
+
 
         Button center = view.findViewById(R.id.Center);
         center.setOnClickListener(this);
