@@ -76,7 +76,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 }
                 if (currentLocation != null) {
                     if (dataSnapshot.exists()) {
-                        Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                        //Log.e("Count ", "" + dataSnapshot.getChildrenCount());
                         for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
                             Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
                             assert cafenea != null;
@@ -134,10 +134,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
     Boolean requestingLocationUpdates = true;
+    MapStateManager mgr;
+    CameraPosition position;
+    short delay = 350;
     //Variabile globale
     private
     GoogleMap googleMap;
-    private static final int REQUEST_CODE = 101;
     SearchView searchView;
 
     //Functie Geocoder(JAVA SDK-Gratis) spune oras dupa coordonate
@@ -186,8 +188,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
         };
         new Thread(thr).start();
-        final MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
-        final CameraPosition position = mgr.getSavedCameraPosition();
+        mgr = new MapStateManager(HomeFragment.this.requireContext());
+        if (mgr.getSavedCameraPosition() != null) {
+            position = mgr.getSavedCameraPosition();
+        }
+
         if (currentLocation == null) {
             mMapView.onResume();
             try {
@@ -202,33 +207,38 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     Log.e("Harta", "a aparut");
                     googleMap = mMap;
                     // For showing a move to my location button
-                    if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        requestPermissions(new String[]
-                                {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
-                        return;
-                    }
                     // Obtain the SupportMapFragment and get notified when the map is ready to be used.
                     if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                        final Handler handler = new Handler();
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {// Do something after 5s = 5000ms
-                                new Thread(thr).start();
-                            }
+                        new Thread(thr).start();
 
-                        }, 1000);
                         databaseCafea.addListenerForSingleValueEvent(valueEventListener);
                     } else {
                         Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
                     }
                     googleMap.setMyLocationEnabled(true);
                     googleMap.getUiSettings().setMyLocationButtonEnabled(false);
-                    if (position != null) {
-                        CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
-                        Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
-                        googleMap.moveCamera(update);
-                        googleMap.setMapType(mgr.getSavedMapType());
+                    if (currentLocation != null) {
+                        delay = 0;
                     }
+                    final Handler handler = new Handler();
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {// Do something after 5s = 5000ms
+                            if (mgr.getSavedCameraPosition() != null && mgr.getSavedCameraPosition().target.latitude <= currentLocation.getLatitude() + 0.25 && mgr.getSavedCameraPosition().target.latitude >= currentLocation.getLatitude() - 0.25 && mgr.getSavedCameraPosition().target.longitude <= currentLocation.getLongitude() + 0.25 && mgr.getSavedCameraPosition().target.longitude >= currentLocation.getLongitude() - 0.25) {
+                                CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
+                                Toast.makeText(HomeFragment.this.getContext(), "Resume State", Toast.LENGTH_SHORT).show();
+                                googleMap.moveCamera(update);
+                                googleMap.setMapType(mgr.getSavedMapType());
+                            } else {
+                                googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                                        new LatLng(currentLocation.getLatitude(),
+                                                currentLocation.getLongitude()), 15));
+                            }
+                        }
+
+                    }, delay);
+
+
                 }
             });
         }
@@ -330,6 +340,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onPause() {
         super.onPause();
+
         mMapView.onPause();
         MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
         if (googleMap != null) {
@@ -370,10 +381,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onResume() {
         super.onResume();
+        new Thread(thr).start();
         mMapView.onResume();
+        Toast.makeText(HomeFragment.this.requireContext(), "we have reached on resume", Toast.LENGTH_SHORT).show();
         if (requestingLocationUpdates) {
             startLocationUpdates();
         }
+
     }
 
     private void stopLocationUpdates() {
@@ -443,11 +457,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mMapView.onDestroy();
-    }
 
     @Override
     public void onLowMemory() {
@@ -476,7 +485,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 public void onSuccess(Location location) {
                     if (task.isSuccessful() && task.getResult() != null) {
                         currentLocation = task.getResult();
-                        Log.e("Locatie", "A mers");
                     /*googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
                             new LatLng(currentLocation.getLatitude(),
                                     currentLocation.getLongitude()), 15));*/
