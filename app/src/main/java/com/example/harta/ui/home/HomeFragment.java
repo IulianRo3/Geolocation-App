@@ -250,27 +250,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             Gson g = new Gson();
             Cafenele cafenele = g.fromJson(String.valueOf(sb), Cafenele.class);
 
-            if (cache.isEmpty()) {
-                cache.addAll(cafenele.getCafenele());
-
-
-
-               /* if(googleMap!=null){
-                   mrk.add(googleMap.addMarker(new MarkerOptions()
-                            .position(new LatLng(cafenele.getCafenele().get(i).getLatitude(), cafenele.getCafenele().get(i).getLongitude()))
-                            .title(cafenele.getCafenele().get(i).getName())
-                            .snippet(cafenele.getCafenele().get(i).getAddress())
-                            .icon(BitmapDescriptorFactory.defaultMarker
-                                    (BitmapDescriptorFactory.HUE_AZURE))));
-                }
-                else{
-                    Log.e("cafenele",""+cafenele.getCafenele().get(i).getName());
-                }*/
-
-            } else {
+            if (!cache.isEmpty()) {
                 cache.clear();
-                cache.addAll(cafenele.getCafenele());
             }
+            cache.addAll(cafenele.getCafenele());
 
             // Log.e("Citire",""+sb.toString());
 
@@ -295,14 +278,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             Gson g = new Gson();
             Cafenele cafenele = g.fromJson(String.valueOf(sb), Cafenele.class);
 
-            if (cache.isEmpty()) {
-                cache.addAll(cafenele.getCafenele());
-
-
-            } else {
+            if (!cache.isEmpty()) {
                 cache.clear();
-                cache.addAll(cafenele.getCafenele());
             }
+            cache.addAll(cafenele.getCafenele());
             for (Cafenea cafenea : cache) {
                 if (currentLocation != null && cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
                     if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
