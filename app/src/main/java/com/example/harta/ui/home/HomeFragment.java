@@ -29,6 +29,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.harta.Cafenea;
+import com.example.harta.Cafenele;
 import com.example.harta.MapStateManager;
 import com.example.harta.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -53,8 +54,17 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
+import com.google.gson.Gson;
+import com.google.gson.stream.JsonWriter;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -67,11 +77,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     double latitudine;
     static CameraPosition pozitie;
     double longitudine;
-
-
+    String fileName = "yourFileName";
+    boolean json;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     @SuppressLint("StaticFieldLeak")
     static ViewFlipper viewFlipper;
+    ArrayList<Cafenea> cache = new ArrayList<>();
     static ArrayList<Marker> mrk = new ArrayList<>();
     static LocationCallback locationCallback;
     static ArrayList<Cafenea> rezultat;
@@ -88,6 +99,33 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     MapView mMapView;
     Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
+    ValueEventListener cacheEventListener = new ValueEventListener() {
+
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            if (dataSnapshot.exists()) {
+                Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
+                    assert cafenea != null;
+
+                    try {
+                        if (cafenea.getAddress().contains(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
+                            cache.add(cafenea);
+                            Log.e("Citire DB", "" + cafenea.getLatitude() + " " + cafenea.getLongitude());
+
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError error) {
+        }
+    };
     ValueEventListener CameraEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -125,6 +163,167 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
         myCity = addresses.get(0).getLocality();
         return myCity;
+    }
+
+    public void verificareJson() throws IOException {
+        FileInputStream fis = HomeFragment.this.requireContext().openFileInput(fileName);
+        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(isr);
+        json = bufferedReader.readLine() != null;
+    }
+
+    public void Scriere(String fileName) throws IOException {
+
+        FileInputStream fis = HomeFragment.this.requireContext().openFileInput(fileName);
+        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(isr);
+        if (bufferedReader.readLine() == null) {
+            databaseCafea.addListenerForSingleValueEvent(cacheEventListener);
+
+            final Handler handler = new Handler();
+            handler.postDelayed(() -> {
+                HomeFragment.this.getContext();
+                FileOutputStream fos = null;
+                try {
+                    fos = HomeFragment.this.requireContext().openFileOutput(fileName, Context.MODE_PRIVATE);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                Log.e("CACHE", "" + cache.size());
+
+
+                assert fos != null;
+                OutputStreamWriter out = new OutputStreamWriter(fos);
+                JsonWriter writer = new JsonWriter(out);
+                //set indentation for pretty print
+                writer.setIndent("\t");
+                //start writing
+
+                try {
+                    writer.beginObject(); //{
+
+
+                    writer.name("Cafenele").beginArray();
+                    for (Cafenea cafenea : cache) {
+                        writer.beginObject(); //{
+
+                        writer.name("Address").value(cafenea.getAddress()); // "id": 123
+                        writer.name("Latitude").value(cafenea.getLatitude()); // "name": "David"
+                        writer.name("Longitude").value(cafenea.getLongitude()); // "permanent": false
+                        writer.name("id").value(cafenea.getId());
+                        writer.name("name").value(cafenea.getName());// "address": {
+                        writer.endObject(); // }
+
+                    }
+
+                    writer.endArray(); // ]
+                    writer.endObject(); // }
+                    writer.flush();
+
+                    //close writer
+                    writer.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+            }, 500);
+        } else {
+            Log.e("Fisier", "Exista");
+        }
+
+
+    }
+
+
+    public void read_file(@NonNull Context context, String filename, ArrayList<Cafenea> cache) {
+
+        try {
+            FileInputStream fis = context.openFileInput(filename);
+            InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+            BufferedReader bufferedReader = new BufferedReader(isr);
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                sb.append(line).append("\n");
+
+            }
+            Gson g = new Gson();
+            Cafenele cafenele = g.fromJson(String.valueOf(sb), Cafenele.class);
+
+            if (cache.isEmpty()) {
+                cache.addAll(cafenele.getCafenele());
+
+
+
+               /* if(googleMap!=null){
+                   mrk.add(googleMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(cafenele.getCafenele().get(i).getLatitude(), cafenele.getCafenele().get(i).getLongitude()))
+                            .title(cafenele.getCafenele().get(i).getName())
+                            .snippet(cafenele.getCafenele().get(i).getAddress())
+                            .icon(BitmapDescriptorFactory.defaultMarker
+                                    (BitmapDescriptorFactory.HUE_AZURE))));
+                }
+                else{
+                    Log.e("cafenele",""+cafenele.getCafenele().get(i).getName());
+                }*/
+
+            } else {
+                cache.clear();
+                cache.addAll(cafenele.getCafenele());
+            }
+
+            // Log.e("Citire",""+sb.toString());
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void read_file_markers(@NonNull Context context, String filename, ArrayList<Cafenea> cache) {
+
+        try {
+            FileInputStream fis = context.openFileInput(filename);
+            InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+            BufferedReader bufferedReader = new BufferedReader(isr);
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = bufferedReader.readLine()) != null) {
+                sb.append(line).append("\n");
+
+            }
+            Gson g = new Gson();
+            Cafenele cafenele = g.fromJson(String.valueOf(sb), Cafenele.class);
+
+            if (cache.isEmpty()) {
+                cache.addAll(cafenele.getCafenele());
+
+
+            } else {
+                cache.clear();
+                cache.addAll(cafenele.getCafenele());
+            }
+            for (Cafenea cafenea : cache) {
+                if (currentLocation != null && cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
+                    if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                        mrk.add(googleMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                .title(cafenea.getName())
+                                .snippet(cafenea.getAddress())
+                                .icon(BitmapDescriptorFactory.defaultMarker
+                                        (BitmapDescriptorFactory.HUE_AZURE))));
+                    }
+                }
+
+                //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
+            }
+
+            //Log.e("Citire",""+sb.toString());
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     ValueEventListener valueEventListener = new ValueEventListener() {
@@ -166,10 +365,15 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     SearchView searchView;
 
     //De aici incepe aplicata.Locul unde se creeaza fragmentul cu toate utilitatile sale(Main)
+
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-
+        try {
+            verificareJson();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
         if (currentLocation == null && mMapView != null) {
@@ -177,7 +381,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
 
+
         ListenerForSingeAndMGR();
+        try {
+            Scriere(fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
 
         Back back = new Back();
         new Thread(back).start();
@@ -204,7 +415,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     public void ListenerForSingeAndMGR() {
         if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+
+            if (!json) {
+                databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+            } else {
+                final Handler handler = new Handler();
+                handler.postDelayed(() -> read_file_markers(HomeFragment.this.requireContext(), fileName, cache), 500);
+
+            }
+
+
         } else {
             Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
         }
@@ -343,6 +563,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         longitudine = pozitie.target.longitude;
 
         MapRdy mrd = new MapRdy();
+
         new Thread(mrd).start();
 
         Runnable r = new Runnable() {
@@ -355,9 +576,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     pozitie = googleMap.getCameraPosition();
                     latitudine = pozitie.target.latitude;
                     longitudine = pozitie.target.longitude;
-                    if (pozitie.zoom > 16.0 && chunk.isEmpty()) {
 
-                        databaseCafea.addListenerForSingleValueEvent(CameraEventListener);
+                    if (pozitie.zoom > 16.0 && chunk.isEmpty()) {
+                        if (!json) {
+                            databaseCafea.addListenerForSingleValueEvent(CameraEventListener);
+                        } else {
+                            for (Cafenea cafenea : cache) {
+                                chunk.add(mMap.addMarker(new MarkerOptions()
+                                        .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                        .title(cafenea.getName())
+                                        .snippet(cafenea.getAddress())
+                                        .icon(BitmapDescriptorFactory.defaultMarker
+                                                (BitmapDescriptorFactory.HUE_AZURE))));
+                                Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
+                            }
+
+                        }
 
 
                     } else if (pozitie.zoom < 15.0) {
@@ -451,73 +685,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
-/*
-    public class UserSearchThread implements Runnable {
-        //Functia ce cauta in baza de date
-        //Functie Geocoder(JAVA SDK-Gratis) spune oras dupa coordonate
-        private String getCityName(double latitude, double longitude) throws IOException {
-            String myCity;
-            Geocoder geocoder = new Geocoder(HomeFragment.this.requireContext(), Locale.getDefault());
-            List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
-            myCity = addresses.get(0).getLocality();
-            return myCity;
-        }
 
-        private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
-            final ArrayList<Cafenea> cautare = new ArrayList<>();
-
-            Query query = databaseCafea.orderByChild("name");
-            query.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    if (dataSnapshot.exists()) {
-                        for (DataSnapshot issue : dataSnapshot.getChildren()) {
-                            try {
-                                new Cafenea();
-                                Cafenea caf;
-                                caf = issue.getValue(Cafenea.class);
-                                assert caf != null;
-                                if (caf.getAddress().contains(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
-                                    if (cautare.size() <= 30) {
-                                        cautare.add(issue.getValue(Cafenea.class));
-                                        if (cautare.size() == 30) {
-                                            for (int i = 0; i < cautare.size(); i++) {
-                                                if (cautare.get(i).getName().toLowerCase().contains(searchText)) {
-                                                    rezultat.add(cautare.get(i));
-                                                }
-                                            }
-                                            cautare.clear();
-                                        }
-                                    }
-                                }
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                        if (rezultat.isEmpty()) {
-                            negasit.setVisibility(View.VISIBLE);
-                        } else {
-                            negasit.setVisibility(View.GONE);
-                        }
-                        cautare.clear();
-                    }
-                    UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
-                    lv.setAdapter(adapter);
-                }
-
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {
-                }
-            });
-        }
-
-        @Override
-        public void run() {
-            String location = searchView.getQuery().toString().toLowerCase();
-            firebaseUserSearch(location, currentLocation, databaseCafea);
-            Log.e("Firebase", "PIZZA FIREBASE ID" + Thread.currentThread().getId());
-        }
-    }*/
 
     @SuppressLint("StaticFieldLeak")
     class FirebaseUserSearch extends AsyncTask<Void, Void, Void> {
@@ -536,22 +704,36 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
         }
 
-        private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) {
+        private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) throws IOException {
             final ArrayList<Cafenea> cautare = new ArrayList<>();
+            if (!json) {
+                Query query = databaseCafea.orderByChild("name");
+                query.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                        if (dataSnapshot.exists()) {
+                            for (DataSnapshot issue : dataSnapshot.getChildren()) {
+                                try {
+                                    new Cafenea();
+                                    Cafenea caf;
+                                    caf = issue.getValue(Cafenea.class);
+                                    assert caf != null;
+                                    if (getCityName(latitudine, longitudine) == null) {
+                                        if (latitudine == 0 && caf.getAddress().contains(Objects.requireNonNull(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude())))) {
+                                            if (cautare.size() <= 30) {
+                                                cautare.add(issue.getValue(Cafenea.class));
+                                                if (cautare.size() == 30) {
+                                                    for (Cafenea cafenea : cautare) {
+                                                        if (cafenea.getName().toLowerCase().contains(searchText)) {
+                                                            rezultat.add(cafenea);
+                                                        }
+                                                    }
+                                                    cautare.clear();
+                                                }
+                                            }
+                                        }
 
-            Query query = databaseCafea.orderByChild("name");
-            query.addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    if (dataSnapshot.exists()) {
-                        for (DataSnapshot issue : dataSnapshot.getChildren()) {
-                            try {
-                                new Cafenea();
-                                Cafenea caf;
-                                caf = issue.getValue(Cafenea.class);
-                                assert caf != null;
-                                if (getCityName(latitudine, longitudine) == null) {
-                                    if (latitudine == 0 && caf.getAddress().contains(Objects.requireNonNull(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude())))) {
+                                    } else if (caf.getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
                                         if (cautare.size() <= 30) {
                                             cautare.add(issue.getValue(Cafenea.class));
                                             if (cautare.size() == 30) {
@@ -563,42 +745,59 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                                 cautare.clear();
                                             }
                                         }
+                                    } else {
+                                        Toast.makeText(HomeFragment.this.requireContext(), "Get closer I can't see", Toast.LENGTH_SHORT).show();
                                     }
-
-                                } else if (caf.getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
-                                    if (cautare.size() <= 30) {
-                                        cautare.add(issue.getValue(Cafenea.class));
-                                        if (cautare.size() == 30) {
-                                            for (Cafenea cafenea : cautare) {
-                                                if (cafenea.getName().toLowerCase().contains(searchText)) {
-                                                    rezultat.add(cafenea);
-                                                }
-                                            }
-                                            cautare.clear();
-                                        }
-                                    }
-                                } else {
-                                    Toast.makeText(HomeFragment.this.requireContext(), "Get closer I can't see", Toast.LENGTH_SHORT).show();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
                                 }
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                            }
+                            if (rezultat.isEmpty()) {
+                                negasit.setVisibility(View.VISIBLE);
+                            } else {
+                                negasit.setVisibility(View.GONE);
+                            }
+                            cautare.clear();
+                        }
+                        UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                        lv.setAdapter(adapter);
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError databaseError) {
+                    }
+                });
+            } else {
+                read_file(HomeFragment.this.requireContext(), fileName, cache);
+                Log.e("cache", "" + cache.size());
+                for (Cafenea caf : cache) {
+                    if (getCityName(latitudine, longitudine) == null) {
+                        if (latitudine == 0 && caf.getAddress().contains(Objects.requireNonNull(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude())))) {
+                            if (caf.getName().toLowerCase().contains(searchText)) {
+                                rezultat.add(caf);
                             }
                         }
-                        if (rezultat.isEmpty()) {
-                            negasit.setVisibility(View.VISIBLE);
-                        } else {
-                            negasit.setVisibility(View.GONE);
+                    } else if (caf.getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
+                        if (caf.getName().toLowerCase().contains(searchText)) {
+                            rezultat.add(caf);
                         }
-                        cautare.clear();
+                    } else {
+                        Toast.makeText(HomeFragment.this.requireContext(), "Get closer I can't see", Toast.LENGTH_SHORT).show();
                     }
-                    UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
-                    lv.setAdapter(adapter);
+                    if (rezultat.isEmpty()) {
+                        negasit.setVisibility(View.VISIBLE);
+                    } else {
+                        negasit.setVisibility(View.GONE);
+                    }
+                    cautare.clear();
+
                 }
 
-                @Override
-                public void onCancelled(@NonNull DatabaseError databaseError) {
-                }
-            });
+                UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                lv.setAdapter(adapter);
+
+
+            }
         }
 
         @Override
@@ -610,7 +809,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
             search.post(() -> {
                 String location = searchView.getQuery().toString().toLowerCase();
-                firebaseUserSearch(location, currentLocation, databaseCafea);
+                try {
+                    firebaseUserSearch(location, currentLocation, databaseCafea);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             });
             return null;
         }
@@ -796,44 +999,6 @@ public void SetPos(CameraPosition LastViewed){
  */
 
 
-/*    Metoda ce opreste updatarea locatiei dar in plus va da la user(bun de debug un mesaj instiintandu l ca nu i se mai updateaza
-    de asemenea in situatia de fata T Task<Void> task este folosit pt a sincroniza textul cu operatia
-    private void stopLocationUpdates() {
-        fusedLocationProviderClient.removeLocationUpdates(locationCallback).addOnCompleteListener
-                ((Activity) HomeFragment.this.requireContext(),new OnCompleteListener<Void>(){
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        Toast.makeText(HomeFragment.this.requireContext(), "Location updates stopped!", Toast.LENGTH_SHORT).show();}
-                });
-    }*/
 
 
 
-/*public void printtojson(ArrayList<Marker> mrk) {
-
-        try {
-            FileOutputStream out = new FileOutputStream(new File(Environment.getDataDirectory().getPath() + "Marcovia.json"), true);
-            OutputStreamWriter osw = new OutputStreamWriter(Objects.requireNonNull(out));
-            JsonWriter writer = new JsonWriter(osw);
-            for (int i = 0; i < mrk.size(); i++) {
-                writer.setIndent("\t");
-                try {
-                    writer.beginObject();
-                    writer.name("Cafenele").beginArray();
-                    writer.beginObject();
-                    writer.name("id").value(String.valueOf(mrk.get(i).getPosition()));
-                    writer.name("name").value(mrk.get(i).getTitle());
-                    writer.name("Address").value(mrk.get(i).getSnippet());
-                    writer.endObject();
-                    writer.endArray();
-                    writer.endObject();
-                    writer.flush();
-                    writer.close();
-                } catch (IOException e) {
-                    Log.e("problema", "nu s-a putut");
-                }
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-    }*/
