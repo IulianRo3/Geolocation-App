@@ -58,12 +58,14 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonWriter;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +81,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     double longitudine;
     String fileName = "yourFileName";
     boolean json;
+    boolean fisier;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     @SuppressLint("StaticFieldLeak")
     static ViewFlipper viewFlipper;
@@ -88,7 +91,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     static ArrayList<Cafenea> rezultat;
     static Boolean requestingLocationUpdates = true;
     static MapStateManager mgr;
-    static CameraPosition position;
+    CameraPosition position;
     // short delay = 150;
     //Variabile globale
     private
@@ -99,8 +102,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     MapView mMapView;
     Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
-    ValueEventListener cacheEventListener = new ValueEventListener() {
+    fetchLastLocation fll = new fetchLastLocation();
 
+
+    ValueEventListener cacheEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
             if (dataSnapshot.exists()) {
@@ -112,7 +117,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     try {
                         if (cafenea.getAddress().contains(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
                             cache.add(cafenea);
-                            Log.e("Citire DB", "" + cafenea.getLatitude() + " " + cafenea.getLongitude());
 
                         }
                     } catch (IOException e) {
@@ -169,74 +173,67 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         FileInputStream fis = HomeFragment.this.requireContext().openFileInput(fileName);
         InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
         BufferedReader bufferedReader = new BufferedReader(isr);
-        json = bufferedReader.readLine() != null;
+        File file = HomeFragment.this.requireContext().getFileStreamPath(fileName);
+        if (file.exists()) {
+            fisier = true;
+        }
+        if (bufferedReader.readLine() != null) {
+            json = true;
+        }
+        Log.e("Fisier Exista", "" + fisier);
+        Log.e("Fisier e scris", "" + json);
     }
 
-    public void Scriere(String fileName) throws IOException {
-
-        FileInputStream fis = HomeFragment.this.requireContext().openFileInput(fileName);
-        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
-        BufferedReader bufferedReader = new BufferedReader(isr);
-        if (bufferedReader.readLine() == null) {
-            databaseCafea.addListenerForSingleValueEvent(cacheEventListener);
-
-            final Handler handler = new Handler();
-            handler.postDelayed(() -> {
-                HomeFragment.this.getContext();
-                FileOutputStream fos = null;
-                try {
-                    fos = HomeFragment.this.requireContext().openFileOutput(fileName, Context.MODE_PRIVATE);
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                }
-                Log.e("CACHE", "" + cache.size());
+    public void Scriere(String fileName) {
 
 
-                assert fos != null;
-                OutputStreamWriter out = new OutputStreamWriter(fos);
-                JsonWriter writer = new JsonWriter(out);
-                //set indentation for pretty print
-                writer.setIndent("\t");
-                //start writing
+        databaseCafea.addListenerForSingleValueEvent(cacheEventListener);
+        final Handler handler = new Handler();
+        handler.postDelayed(() -> {
+            HomeFragment.this.getContext();
+            FileOutputStream fos = null;
+            try {
+                fos = HomeFragment.this.requireContext().openFileOutput(fileName, Context.MODE_PRIVATE);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            Log.e("CACHE", "" + cache.size());
 
-                try {
+            assert fos != null;
+            OutputStreamWriter out = new OutputStreamWriter(fos);
+            JsonWriter writer = new JsonWriter(out);
+            //set indentation for pretty print
+            writer.setIndent("\t");
+            //start writing
+            try {
+                writer.beginObject(); //{
+                writer.name("Cafenele").beginArray();
+                for (Cafenea cafenea : cache) {
+                    Log.e("Cache", "" + cafenea.getName());
                     writer.beginObject(); //{
 
-
-                    writer.name("Cafenele").beginArray();
-                    for (Cafenea cafenea : cache) {
-                        writer.beginObject(); //{
-
-                        writer.name("Address").value(cafenea.getAddress()); // "id": 123
-                        writer.name("Latitude").value(cafenea.getLatitude()); // "name": "David"
-                        writer.name("Longitude").value(cafenea.getLongitude()); // "permanent": false
-                        writer.name("id").value(cafenea.getId());
-                        writer.name("name").value(cafenea.getName());// "address": {
-                        writer.endObject(); // }
-
-                    }
-
-                    writer.endArray(); // ]
+                    writer.name("Address").value(cafenea.getAddress()); // "id": 123
+                    writer.name("Latitude").value(cafenea.getLatitude()); // "name": "David"
+                    writer.name("Longitude").value(cafenea.getLongitude()); // "permanent": false
+                    writer.name("id").value(cafenea.getId());
+                    writer.name("name").value(cafenea.getName());// "address": {
                     writer.endObject(); // }
-                    writer.flush();
-
-                    //close writer
-                    writer.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
+                writer.endArray(); // ]
+                writer.endObject(); // }
+                writer.flush();
 
-            }, 500);
-        } else {
-            Log.e("Fisier", "Exista");
-        }
+                //close writer
+                writer.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
-
+        }, 650);
     }
 
 
     public void read_file(@NonNull Context context, String filename, ArrayList<Cafenea> cache) {
-
         try {
             FileInputStream fis = context.openFileInput(filename);
             InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
@@ -245,7 +242,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 sb.append(line).append("\n");
-
             }
             Gson g = new Gson();
             Cafenele cafenele = g.fromJson(String.valueOf(sb), Cafenele.class);
@@ -254,56 +250,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 cache.clear();
             }
             cache.addAll(cafenele.getCafenele());
-
-            // Log.e("Citire",""+sb.toString());
-
-
+            Log.e("Marime cache", "" + cache.size());
+            Log.e("Citire", "" + sb.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void read_file_markers(@NonNull Context context, String filename, ArrayList<Cafenea> cache) {
 
-        try {
-            FileInputStream fis = context.openFileInput(filename);
-            InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
-            BufferedReader bufferedReader = new BufferedReader(isr);
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = bufferedReader.readLine()) != null) {
-                sb.append(line).append("\n");
-
-            }
-            Gson g = new Gson();
-            Cafenele cafenele = g.fromJson(String.valueOf(sb), Cafenele.class);
-
-            if (!cache.isEmpty()) {
-                cache.clear();
-            }
-            cache.addAll(cafenele.getCafenele());
-            for (Cafenea cafenea : cache) {
-                if (currentLocation != null && cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
-                    if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
-                        mrk.add(googleMap.addMarker(new MarkerOptions()
-                                .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
-                                .title(cafenea.getName())
-                                .snippet(cafenea.getAddress())
-                                .icon(BitmapDescriptorFactory.defaultMarker
-                                        (BitmapDescriptorFactory.HUE_AZURE))));
-                    }
-                }
-
-                //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
-            }
-
-            //Log.e("Citire",""+sb.toString());
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     ValueEventListener valueEventListener = new ValueEventListener() {
         @Override
@@ -356,18 +310,18 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
         if (currentLocation == null && mMapView != null) {
+            new Thread(fll).start();
             mMapView.getMapAsync(this);
         }
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
 
-
         ListenerForSingeAndMGR();
-        try {
-            Scriere(fileName);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
+
+        if (!fisier && !json) {
+            Scriere(fileName);
+            read_file(HomeFragment.this.requireContext(), fileName, cache);
+        }
 
         Back back = new Back();
         new Thread(back).start();
@@ -398,11 +352,25 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             if (!json) {
                 databaseCafea.addListenerForSingleValueEvent(valueEventListener);
             } else {
+                read_file(HomeFragment.this.requireContext(), fileName, cache);
                 final Handler handler = new Handler();
-                handler.postDelayed(() -> read_file_markers(HomeFragment.this.requireContext(), fileName, cache), 500);
+                handler.postDelayed(() -> {
+                    for (Cafenea cafenea : cache) {
+                        if (currentLocation != null && cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
+                            if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                                mrk.add(googleMap.addMarker(new MarkerOptions()
+                                        .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                        .title(cafenea.getName())
+                                        .snippet(cafenea.getAddress())
+                                        .icon(BitmapDescriptorFactory.defaultMarker
+                                                (BitmapDescriptorFactory.HUE_AZURE))));
+                            }
+                        }
 
+                        //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
+                    }
+                }, 500);
             }
-
 
         } else {
             Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
@@ -443,7 +411,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onResume() {
         super.onResume();
-        new Async().execute();
+        new Async(HomeFragment.this).execute();
         mMapView.onResume();
         if (requestingLocationUpdates) {
             startLocationUpdates();
@@ -593,7 +561,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     //OnBackPressedCallBack - setare functie buton de back
     class Back implements Runnable {
         Handler sh = new Handler();
-
         @Override
         public void run() {
             sh.post(() -> {
@@ -619,20 +586,66 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     }
 //70 ms
 
-    @SuppressLint("StaticFieldLeak")
-    class Async extends AsyncTask<Void, Void, Void> {
+
+    static class Async extends AsyncTask<Void, Void, Void> {
+        private final WeakReference<HomeFragment> wk;
+        FusedLocationProviderClient fusedLocationProviderClient;
+        Location currentLocation;
+        CameraPosition position;
+        int delay = 100;
+
+        public Async(HomeFragment context) {
+            this.wk = new WeakReference<>(context);
+        }
+
+        public int setDelay(int delay) {
+            if (currentLocation == null) {
+                delay += 20;
+                final Handler handler = new Handler();
+                int finalDelay = delay;
+                handler.postDelayed(() -> setDelay(finalDelay), 0);
+            } else {
+                delay = 0;
+            }
+            return delay;
+        }
+
+        @SuppressLint("MissingPermission")
         @Override
         protected Void doInBackground(Void... voids) {
-            fetchLastLocation thr = new fetchLastLocation();
-            new Thread(thr).start();
+            HomeFragment activity = wk.get();
+            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(activity.requireContext());
+
+            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
+            task.addOnSuccessListener(location -> {
+                if (task.isSuccessful() && task.getResult() != null) {
+                    currentLocation = task.getResult();
+
+                }
+            }).addOnFailureListener(e -> {
+                Log.d("MapDemoActivity", "Error trying to get last GPS location");
+                e.printStackTrace();
+            });
+
+            mgr = new MapStateManager(activity.requireContext());
+            if (mgr.getSavedCameraPosition() != null) {
+                position = mgr.getSavedCameraPosition();
+            }
+
+            locationCallback = new LocationCallback() {
+                @Override
+                public void onLocationResult(LocationResult locationResult) {
+                }
+            };
             return null;
         }
 
         @Override
         protected void onPostExecute(Void aVoid) {
+            HomeFragment activity = wk.get();
             Handler ol = new Handler();
-            ol.post(() -> {
-                if (currentLocation != null && mgr.getSavedCameraPosition() != null && mgr.getSavedCameraPosition().target.latitude <= currentLocation.getLatitude() + 0.25 && mgr.getSavedCameraPosition().target.latitude >= currentLocation.getLatitude() - 0.25 && mgr.getSavedCameraPosition().target.longitude <= currentLocation.getLongitude() + 0.25 && mgr.getSavedCameraPosition().target.longitude >= currentLocation.getLongitude() - 0.25) {
+            ol.postDelayed(() -> {
+                if (currentLocation != null && mgr.getSavedCameraPosition() != null && mgr.getSavedCameraPosition().target.latitude <= currentLocation.getLatitude() + 0.25 && mgr.getSavedCameraPosition().target.latitude >= currentLocation.getLatitude() - 0.25 && mgr.getSavedCameraPosition().target.longitude <= currentLocation.getLongitude() + 0.25 && mgr.getSavedCameraPosition().target.longitude >= currentLocation.getLongitude() - 0.25 && position != null) {
                     CameraUpdate update = CameraUpdateFactory.newCameraPosition(position);
                     googleMap.moveCamera(update);
                     googleMap.setMapType(mgr.getSavedMapType());
@@ -640,10 +653,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
                             new LatLng(currentLocation.getLatitude(),
                                     currentLocation.getLongitude()), 15));
+                } else {
+                    Toast.makeText(activity.requireContext(), "S-a miscat prea incet", Toast.LENGTH_SHORT).show();
                 }
-            });
+            }, setDelay(delay));
         }
+
     }
+
 
     class MapRdy implements Runnable {
         Handler mr = new Handler();
@@ -655,7 +672,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 // Obtain the SupportMapFragment and get notified when the map is ready to be used.
                 if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     googleMap.setMyLocationEnabled(true);
-                    new Async().execute();
+                    new Async(HomeFragment.this).execute();
                 } else {
                     Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
                 }
@@ -686,6 +703,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) throws IOException {
             final ArrayList<Cafenea> cautare = new ArrayList<>();
             if (!json) {
+                Log.e("Baza de date", "Se cauta");
                 Query query = databaseCafea.orderByChild("name");
                 query.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
@@ -809,24 +827,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         super.onSaveInstanceState(savedInstanceState);
     }
 
-    //Ultima ta locatie
-    class fetchLastLocation implements Runnable {
-        @Override
-        public void run() {
-            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
 
-            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
-            task.addOnSuccessListener(location -> {
-                if (task.isSuccessful() && task.getResult() != null) {
-                    currentLocation = task.getResult();
-
-                }
-            }).addOnFailureListener(e -> {
-                Log.d("MapDemoActivity", "Error trying to get last GPS location");
-                e.printStackTrace();
-            });
-        }
-    }
 
 
 //--------------------------------------------------------------------------------------------------------------------
@@ -877,6 +878,24 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             });
             // Return the completed view to render on screen
             return convertView;
+        }
+    }
+
+    class fetchLastLocation implements Runnable {
+        @Override
+        public void run() {
+            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
+
+            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
+            task.addOnSuccessListener(location -> {
+                if (task.isSuccessful() && task.getResult() != null) {
+                    currentLocation = task.getResult();
+
+                }
+            }).addOnFailureListener(e -> {
+                Log.d("MapDemoActivity", "Error trying to get last GPS location");
+                e.printStackTrace();
+            });
         }
     }
 }
