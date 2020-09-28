@@ -55,16 +55,12 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonWriter;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -105,31 +101,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     fetchLastLocation fll = new fetchLastLocation();
 
 
-    ValueEventListener cacheEventListener = new ValueEventListener() {
-        @Override
-        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-            if (dataSnapshot.exists()) {
-                Log.e("Count ", "" + dataSnapshot.getChildrenCount());
-                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
-                    Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
-                    assert cafenea != null;
-
-                    try {
-                        if (cafenea.getAddress().contains(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
-                            cache.add(cafenea);
-
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-
-        @Override
-        public void onCancelled(@NonNull DatabaseError error) {
-        }
-    };
     ValueEventListener CameraEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -184,54 +155,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         Log.e("Fisier e scris", "" + json);
     }
 
-    public void Scriere(String fileName) {
-
-
-        databaseCafea.addListenerForSingleValueEvent(cacheEventListener);
-        final Handler handler = new Handler();
-        handler.postDelayed(() -> {
-            HomeFragment.this.getContext();
-            FileOutputStream fos = null;
-            try {
-                fos = HomeFragment.this.requireContext().openFileOutput(fileName, Context.MODE_PRIVATE);
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            Log.e("CACHE", "" + cache.size());
-
-            assert fos != null;
-            OutputStreamWriter out = new OutputStreamWriter(fos);
-            JsonWriter writer = new JsonWriter(out);
-            //set indentation for pretty print
-            writer.setIndent("\t");
-            //start writing
-            try {
-                writer.beginObject(); //{
-                writer.name("Cafenele").beginArray();
-                for (Cafenea cafenea : cache) {
-                    Log.e("Cache", "" + cafenea.getName());
-                    writer.beginObject(); //{
-
-                    writer.name("Address").value(cafenea.getAddress()); // "id": 123
-                    writer.name("Latitude").value(cafenea.getLatitude()); // "name": "David"
-                    writer.name("Longitude").value(cafenea.getLongitude()); // "permanent": false
-                    writer.name("id").value(cafenea.getId());
-                    writer.name("name").value(cafenea.getName());// "address": {
-                    writer.endObject(); // }
-                }
-                writer.endArray(); // ]
-                writer.endObject(); // }
-                writer.flush();
-
-                //close writer
-                writer.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-        }, 650);
-    }
-
 
     public void read_file(@NonNull Context context, String filename, ArrayList<Cafenea> cache) {
         try {
@@ -251,7 +174,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
             cache.addAll(cafenele.getCafenele());
             Log.e("Marime cache", "" + cache.size());
-            Log.e("Citire", "" + sb.toString());
+            //Log.e("Citire", "" + sb.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -302,11 +225,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-        try {
-            verificareJson();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
         if (currentLocation == null && mMapView != null) {
@@ -314,18 +233,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             mMapView.getMapAsync(this);
         }
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
-
-        ListenerForSingeAndMGR();
-
-
-        if (!fisier && !json) {
-            Scriere(fileName);
-            read_file(HomeFragment.this.requireContext(), fileName, cache);
+        try {
+            verificareJson();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+
 
         Back back = new Back();
         new Thread(back).start();
-
+        Log.e("Json", "" + json);
+        ListenerForSingeAndMGR();
         lv = view.findViewById(R.id.result_list);
         Button center = view.findViewById(R.id.Center);
         center.setOnClickListener(this);
@@ -520,6 +438,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             public void run() {
                 rr.post(() -> googleMap.setOnCameraMoveListener(() -> {
                     //RAMAS : TREBUIE ORDONATE AMBELE LISTE INAINTE DE COMPARARE
+                    if (cache.isEmpty()) {
+                        try {
+                            verificareJson();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        read_file(HomeFragment.this.requireContext(), fileName, cache);
+                    }
                     pozitie = googleMap.getCameraPosition();
                     latitudine = pozitie.target.latitude;
                     longitudine = pozitie.target.longitude;
@@ -701,6 +627,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
 
         private void firebaseUserSearch(final String searchText, final Location currentLocation, DatabaseReference databaseCafea) throws IOException {
+            if (cache.isEmpty()) {
+                verificareJson();
+                read_file(HomeFragment.this.requireContext(), fileName, cache);
+            }
             final ArrayList<Cafenea> cautare = new ArrayList<>();
             if (!json) {
                 Log.e("Baza de date", "Se cauta");
