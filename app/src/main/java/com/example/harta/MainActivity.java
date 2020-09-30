@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE = 101;
     private AppBarConfiguration mAppBarConfiguration;
     public static ArrayList<Cafenea> cache = new ArrayList<>();
-    public Location currentLocation;
+    public static Location currentLocation1;
     public boolean json;
     public boolean fisier;
     public fetchLastLocation fll = new fetchLastLocation();
@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
                     assert cafenea != null;
 
                     try {
-                        if (cafenea.getAddress().contains(getCityName(currentLocation.getLatitude(), currentLocation.getLongitude()))) {
+                        if (cafenea.getAddress().contains(getCityName(currentLocation1.getLatitude(), currentLocation1.getLongitude()))) {
                             cache.add(cafenea);
 
                         }
@@ -80,10 +80,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+
         @Override
         public void onCancelled(@NonNull DatabaseError error) {
         }
     };
+
 
     private String getCityName(double latitude, double longitude) throws IOException {
         String myCity;
@@ -93,9 +95,8 @@ public class MainActivity extends AppCompatActivity {
         return myCity;
     }
 
+
     public void Scriere(String fileName) {
-
-
         databaseCafea.addListenerForSingleValueEvent(cacheEventListener);
         final Handler handler = new Handler();
         handler.postDelayed(() -> {
@@ -105,7 +106,6 @@ public class MainActivity extends AppCompatActivity {
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
-
 
             assert fos != null;
             OutputStreamWriter out = new OutputStreamWriter(fos);
@@ -158,8 +158,10 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("NewApi")
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
+
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        new Thread(fll).start();
         try {
             verificareJson();
         } catch (IOException e) {
@@ -201,6 +203,17 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
+/*
+        Bundle latitudine = new Bundle();
+        latitudine.putDouble("Latit",currentLocation.getLatitude());
+        Bundle longitudine = new Bundle();
+        longitudine.putDouble("Longit",currentLocation.getLongitude());
+        HomeFragment frgobj = new HomeFragment();
+        frgobj.setArguments(latitudine);
+        frgobj.setArguments(longitudine);
+*/
+
+
     }
 
     class fetchLastLocation implements Runnable {
@@ -211,8 +224,7 @@ public class MainActivity extends AppCompatActivity {
             @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
             task.addOnSuccessListener(location -> {
                 if (task.isSuccessful() && task.getResult() != null) {
-                    currentLocation = task.getResult();
-
+                    currentLocation1 = task.getResult();
                 }
             }).addOnFailureListener(e -> {
                 Log.d("MapDemoActivity", "Error trying to get last GPS location");

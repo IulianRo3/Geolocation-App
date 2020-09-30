@@ -30,6 +30,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.harta.Cafenea;
 import com.example.harta.Cafenele;
+import com.example.harta.MainActivity;
 import com.example.harta.MapStateManager;
 import com.example.harta.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -96,9 +97,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     ListView lv;
     TextView negasit;
     MapView mMapView;
-    Location currentLocation;
     FusedLocationProviderClient fusedLocationProviderClient;
-    fetchLastLocation fll = new fetchLastLocation();
 
 
     ValueEventListener CameraEventListener = new ValueEventListener() {
@@ -191,8 +190,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
                     Cafenea cafenea = postSnapshot.getValue(Cafenea.class);
                     assert cafenea != null;
-                    if (currentLocation != null && cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
-                        if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                    if (MainActivity.currentLocation1 != null && cafenea.getLatitude() <= MainActivity.currentLocation1.getLatitude() + 0.007 && cafenea.getLatitude() >= MainActivity.currentLocation1.getLatitude() - 0.007) {
+                        if (cafenea.getLongitude() <= MainActivity.currentLocation1.getLongitude() + 0.007 && cafenea.getLongitude() >= MainActivity.currentLocation1.getLongitude() - 0.007) {
                             mrk.add(googleMap.addMarker(new MarkerOptions()
                                     .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
                                     .title(cafenea.getName())
@@ -228,10 +227,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
-        if (currentLocation == null && mMapView != null) {
-            new Thread(fll).start();
-            mMapView.getMapAsync(this);
-        }
+
+
+        mMapView.getMapAsync(this);
+        Log.e("PIZZA", String.valueOf(MainActivity.currentLocation1));
+
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
         try {
             verificareJson();
@@ -260,8 +260,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         //Apelare functii de cautare
         SetOnQuery();
 
+
         return view;
     }
+
 
 
     public void ListenerForSingeAndMGR() {
@@ -274,8 +276,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 final Handler handler = new Handler();
                 handler.postDelayed(() -> {
                     for (Cafenea cafenea : cache) {
-                        if (currentLocation != null && cafenea.getLatitude() <= currentLocation.getLatitude() + 0.007 && cafenea.getLatitude() >= currentLocation.getLatitude() - 0.007) {
-                            if (cafenea.getLongitude() <= currentLocation.getLongitude() + 0.007 && cafenea.getLongitude() >= currentLocation.getLongitude() - 0.007) {
+                        if (MainActivity.currentLocation1 != null && cafenea.getLatitude() <= MainActivity.currentLocation1.getLatitude() + 0.007 && cafenea.getLatitude() >= MainActivity.currentLocation1.getLatitude() - 0.007) {
+                            if (cafenea.getLongitude() <= MainActivity.currentLocation1.getLongitude() + 0.007 && cafenea.getLongitude() >= MainActivity.currentLocation1.getLongitude() - 0.007) {
                                 mrk.add(googleMap.addMarker(new MarkerOptions()
                                         .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
                                         .title(cafenea.getName())
@@ -311,7 +313,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             @Override
             public boolean onQueryTextSubmit(String query) {
                 rezultat = new ArrayList<>();
-                if (currentLocation != null) {
+                if (MainActivity.currentLocation1 != null) {
                     new FirebaseUserSearch().execute();
                 } else {
                     Toast.makeText(HomeFragment.this.requireContext(), "Cannot detect user location", Toast.LENGTH_SHORT).show();
@@ -354,9 +356,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 break;
             }
             case R.id.Center: {
-                if (currentLocation != null) {
+                if (MainActivity.currentLocation1 != null) {
                     CameraPosition cameraPosition = new CameraPosition.Builder().
-                            target(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude())).
+                            target(new LatLng(MainActivity.currentLocation1.getLatitude(), MainActivity.currentLocation1.getLongitude())).
                             tilt(0).
                             zoom(16).
                             bearing(0).
@@ -410,9 +412,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     public void UpdateUi() {
         if (isVisible()) {
-            if (null != currentLocation) {
-                currentLocation.getLongitude();
-                currentLocation.getLatitude();
+            if (null != MainActivity.currentLocation1) {
+                MainActivity.currentLocation1.getLongitude();
+                MainActivity.currentLocation1.getLatitude();
             }
 
         }
@@ -546,7 +548,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             task.addOnSuccessListener(location -> {
                 if (task.isSuccessful() && task.getResult() != null) {
                     currentLocation = task.getResult();
-
                 }
             }).addOnFailureListener(e -> {
                 Log.d("MapDemoActivity", "Error trying to get last GPS location");
@@ -730,14 +731,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         @Override
         protected Void doInBackground(Void... voids) {
             try {
-                getCityName(currentLocation.getLatitude(), currentLocation.getLongitude());
+                getCityName(MainActivity.currentLocation1.getLatitude(), MainActivity.currentLocation1.getLongitude());
             } catch (IOException e) {
                 e.printStackTrace();
             }
             search.post(() -> {
                 String location = searchView.getQuery().toString().toLowerCase();
                 try {
-                    firebaseUserSearch(location, currentLocation, databaseCafea);
+                    firebaseUserSearch(location, MainActivity.currentLocation1, databaseCafea);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -811,23 +812,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
-    class fetchLastLocation implements Runnable {
-        @Override
-        public void run() {
-            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(HomeFragment.this.requireContext());
-
-            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
-            task.addOnSuccessListener(location -> {
-                if (task.isSuccessful() && task.getResult() != null) {
-                    currentLocation = task.getResult();
-
-                }
-            }).addOnFailureListener(e -> {
-                Log.d("MapDemoActivity", "Error trying to get last GPS location");
-                e.printStackTrace();
-            });
-        }
-    }
 }
 
 //ZONA COMENTARII:
