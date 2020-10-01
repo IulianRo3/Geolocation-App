@@ -289,7 +289,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
                         //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
                     }
-                }, 500);
+                }, 200);
             }
 
         } else {
@@ -428,7 +428,73 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         pozitie = googleMap.getCameraPosition();
         latitudine = pozitie.target.latitude;
         longitudine = pozitie.target.longitude;
+        googleMap.setOnMapLongClickListener(latLng -> {
+            for (Marker marker : mrk) {
+                if (latLng.latitude <= marker.getPosition().latitude + 0.0014 && latLng.latitude >= marker.getPosition().latitude - 0.0001) {
+                    if (latLng.longitude <= marker.getPosition().longitude + 0.0003 && latLng.longitude >= marker.getPosition().longitude - 0.0003) {
+                        Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show(); //do some stuff
+                        break;
+                    }
 
+                }
+            }
+
+        });
+        googleMap.setOnInfoWindowClickListener(marker -> {
+                    if (srch != null) {
+                        if (marker.getPosition().equals(srch.getPosition())) {
+                            Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
+
+                        }
+
+                    } else if (chunk.isEmpty()) {
+                        for (Marker marker1 : mrk) {
+                            if (marker.getPosition().equals(marker1.getPosition())) {
+                                Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
+                                break;
+                            }
+                        }
+
+
+                    } else {
+                        for (Marker marker1 : chunk) {
+                            if (marker.getPosition().equals(marker1.getPosition())) {
+                                Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
+                                break;
+                            }
+                        }
+                    }
+                }
+        );
+        googleMap.setOnMarkerClickListener(marker -> {
+
+            if (srch != null) {
+                if (marker.getPosition().equals(srch.getPosition())) {
+                    Toast.makeText(HomeFragment.this.requireContext(), "s-a apasat", Toast.LENGTH_SHORT).show();
+
+                }
+
+            } else if (chunk.isEmpty()) {
+                for (Marker marker1 : mrk) {
+                    if (marker.getPosition().equals(marker1.getPosition())) {
+                        Toast.makeText(HomeFragment.this.requireContext(), "s-a apasat", Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                }
+
+
+            } else {
+                for (Marker marker1 : chunk) {
+                    if (marker.getPosition().equals(marker1.getPosition())) {
+                        Toast.makeText(HomeFragment.this.requireContext(), "s-a apasat", Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                }
+
+
+            }
+            return false;
+        });
         MapRdy mrd = new MapRdy();
 
         new Thread(mrd).start();
@@ -486,6 +552,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         fusedLocationProviderClient.removeLocationUpdates(locationCallback);
     }
 
+
     //OnBackPressedCallBack - setare functie buton de back
     class Back implements Runnable {
         Handler sh = new Handler();
@@ -520,7 +587,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         FusedLocationProviderClient fusedLocationProviderClient;
         Location currentLocation;
         CameraPosition position;
-        int delay = 100;
+        int delay = 50;
 
         public Async(HomeFragment context) {
             this.wk = new WeakReference<>(context);
@@ -680,12 +747,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                     e.printStackTrace();
                                 }
                             }
-                            if (rezultat.isEmpty()) {
-                                negasit.setVisibility(View.VISIBLE);
-                            } else {
-                                negasit.setVisibility(View.GONE);
-                            }
+
                             cautare.clear();
+                        }
+                        if (rezultat.isEmpty()) {
+                            negasit.setVisibility(View.VISIBLE);
+                        } else {
+                            negasit.setVisibility(View.GONE);
                         }
                         UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
                         lv.setAdapter(adapter);
@@ -709,23 +777,73 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         if (caf.getName().toLowerCase().contains(searchText)) {
                             rezultat.add(caf);
                         }
-                    } else {
-                        Toast.makeText(HomeFragment.this.requireContext(), "Get closer I can't see", Toast.LENGTH_SHORT).show();
                     }
-                    if (rezultat.isEmpty()) {
-                        negasit.setVisibility(View.VISIBLE);
-                    } else {
-                        negasit.setVisibility(View.GONE);
-                    }
-                    cautare.clear();
+
+
+                }
+                UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                lv.setAdapter(adapter);
+                if (!cache.get(0).getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
+                    Query query = databaseCafea.orderByChild("name");
+                    query.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                            if (dataSnapshot.exists()) {
+                                for (DataSnapshot issue : dataSnapshot.getChildren()) {
+                                    try {
+                                        new Cafenea();
+                                        Cafenea caf;
+                                        caf = issue.getValue(Cafenea.class);
+                                        assert caf != null;
+                                        if (caf.getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
+                                            if (cautare.size() <= 30) {
+                                                cautare.add(issue.getValue(Cafenea.class));
+                                                if (cautare.size() == 30) {
+                                                    for (Cafenea cafenea : cautare) {
+                                                        if (cafenea.getName().toLowerCase().contains(searchText)) {
+                                                            rezultat.add(cafenea);
+                                                        }
+                                                    }
+                                                    if (rezultat.isEmpty()) {
+                                                        negasit.setVisibility(View.VISIBLE);
+                                                    } else {
+                                                        negasit.setVisibility(View.GONE);
+                                                    }
+                                                    UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                                                    lv.setAdapter(adapter);
+                                                    cautare.clear();
+                                                }
+                                            }
+                                        } else {
+                                            Toast.makeText(HomeFragment.this.requireContext(), "Get closer I can't see", Toast.LENGTH_SHORT).show();
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+
+                                cautare.clear();
+                            }
+
+                        }
+
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+
+                        }
+                    });
+
 
                 }
 
-                UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
-                lv.setAdapter(adapter);
-
 
             }
+            Log.e("Rezultat", "" + rezultat.isEmpty());
+
+            cautare.clear();
+
+
         }
 
         @Override

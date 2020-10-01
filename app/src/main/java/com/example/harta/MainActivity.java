@@ -198,20 +198,11 @@ public class MainActivity extends AppCompatActivity {
 
         mAppBarConfiguration = new AppBarConfiguration.Builder(
                 R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow)
-                .setDrawerLayout(drawer)
+                .setOpenableLayout(drawer)
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
-/*
-        Bundle latitudine = new Bundle();
-        latitudine.putDouble("Latit",currentLocation.getLatitude());
-        Bundle longitudine = new Bundle();
-        longitudine.putDouble("Longit",currentLocation.getLongitude());
-        HomeFragment frgobj = new HomeFragment();
-        frgobj.setArguments(latitudine);
-        frgobj.setArguments(longitudine);
-*/
 
 
     }
