@@ -2,6 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rlt_layour"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".ui.home.HomeFragment">
@@ -18,18 +19,13 @@
             android:layout_height="match_parent"
             tools:visibility="invisible">
 
-            <Button
-                android:id="@+id/Center"
-                android:layout_width="49dp"
-                android:layout_height="45dp"
-                android:background="@drawable/ic_baseline_my_location_24"
-                android:text="@string/c"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="1.0"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.0" />
+            <com.google.android.gms.maps.MapView
+                android:id="@+id/mapView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="visible"
+                tools:layout_editor_absoluteX="74dp"
+                tools:layout_editor_absoluteY="98dp" />
 
             <Button
                 android:id="@+id/next"
@@ -43,13 +39,31 @@
                 app:layout_constraintTop_toTopOf="@+id/mapView"
                 app:layout_constraintVertical_bias="0.0" />
 
-            <com.google.android.gms.maps.MapView
-                android:id="@+id/mapView"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="visible"
-                tools:layout_editor_absoluteX="74dp"
-                tools:layout_editor_absoluteY="98dp" />
+            <Button
+                android:id="@+id/Center"
+                android:layout_width="49dp"
+                android:layout_height="45dp"
+                android:background="@drawable/ic_baseline_my_location_24"
+                android:text="@string/c"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="1.0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.0" />
+
+            <ListView
+                android:id="@+id/infoP"
+                android:layout_width="355dp"
+                android:layout_height="113dp"
+                android:background="#FFFFFF"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="@+id/mapView"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toStartOf="@+id/mapView"
+                app:layout_constraintTop_toTopOf="@+id/mapView"
+                app:layout_constraintVertical_bias="0.0" />
+
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout

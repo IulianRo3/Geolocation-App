@@ -65,6 +65,7 @@ import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -98,8 +99,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     TextView negasit;
     MapView mMapView;
     FusedLocationProviderClient fusedLocationProviderClient;
-
-
+    ListView infoP;
+    Button next;
     ValueEventListener CameraEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -253,10 +254,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         viewFlipper = view.findViewById(R.id.view_flipper);
         Button previous = view.findViewById(R.id.previous);
         previous.setOnClickListener(this);
-        Button next = view.findViewById(R.id.next);
+        next = view.findViewById(R.id.next);
         next.setOnClickListener(this);
         negasit = view.findViewById(R.id.GasitNimic);
-
+        infoP = view.findViewById(R.id.infoP);
+        infoP.setVisibility(View.GONE);
         //Apelare functii de cautare
         SetOnQuery();
 
@@ -443,26 +445,32 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         googleMap.setOnInfoWindowClickListener(marker -> {
                     if (srch != null) {
                         if (marker.getPosition().equals(srch.getPosition())) {
-                            Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
+                            next.setVisibility(View.GONE);
+                            try {
+                                InfoPanel(marker);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
 
                         }
 
                     } else if (chunk.isEmpty()) {
-                        for (Marker marker1 : mrk) {
-                            if (marker.getPosition().equals(marker1.getPosition())) {
-                                Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
-                                break;
-                            }
+                        next.setVisibility(View.GONE);
+                        try {
+                            InfoPanel(marker);
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
-
+                        Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
 
                     } else {
-                        for (Marker marker1 : chunk) {
-                            if (marker.getPosition().equals(marker1.getPosition())) {
-                                Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
-                                break;
-                            }
+                        next.setVisibility(View.GONE);
+                        try {
+                            InfoPanel(marker);
+                        } catch (IOException e) {
+                            e.printStackTrace();
                         }
+
                     }
                 }
         );
@@ -564,10 +572,16 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 ) {
                     @Override
                     public void handleOnBackPressed() {
-                        if (srch != null) {
-                            srch.remove();
-                            srch = null;
-                        } else {
+                        if(infoP.getVisibility() == View.VISIBLE){
+
+                            next.setVisibility(View.VISIBLE);
+                            infoP.setVisibility(View.GONE);
+                            if(srch != null){
+                                srch.remove();
+                                srch = null;
+                            }
+                        }
+                        else {
                             viewFlipper.showPrevious();
                         }
 
@@ -699,6 +713,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 verificareJson();
                 read_file(HomeFragment.this.requireContext(), fileName, cache);
             }
+
             final ArrayList<Cafenea> cautare = new ArrayList<>();
             if (!json) {
                 Log.e("Baza de date", "Se cauta");
@@ -752,10 +767,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         }
                         if (rezultat.isEmpty()) {
                             negasit.setVisibility(View.VISIBLE);
+
                         } else {
                             negasit.setVisibility(View.GONE);
                         }
-                        UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
+                        UsersAdapter   adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
                         lv.setAdapter(adapter);
                     }
 
@@ -779,11 +795,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         }
                     }
 
-
                 }
                 UsersAdapter adapter = new UsersAdapter(HomeFragment.this.requireContext(), rezultat);
                 lv.setAdapter(adapter);
-                if (!cache.get(0).getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
+
+                if (getCityName(latitudine, longitudine) != null && !cache.get(0).getAddress().contains(Objects.requireNonNull(getCityName(latitudine, longitudine)))) {
+
                     Query query = databaseCafea.orderByChild("name");
                     query.addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
@@ -834,7 +851,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         }
                     });
 
-
+                }else if(rezultat.isEmpty()){
+                    negasit.setVisibility(View.VISIBLE);
+                }else {
+                    negasit.setVisibility(View.GONE);
                 }
 
 
@@ -901,6 +921,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             final TextView user_name = finalConvertView.findViewById(R.id.nume_text);
             final TextView adress = finalConvertView.findViewById(R.id.adresa_text);
             Button Locatie = finalConvertView.findViewById(R.id.buttonLocatie);
+            Button Detalii = finalConvertView.findViewById(R.id.buttonDetalii);
             assert user != null;
             user_name.setText(user.getName());
             adress.setText(user.getAddress());
@@ -925,11 +946,83 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     }
                 }
             });
+            Detalii.setOnClickListener(view->{
+                if (srch != null) {
+                    srch.remove();
+                }
+                next.setVisibility(View.GONE);
+                for (Cafenea cafenea : rezultat) {
+                    if (user_name.getText().equals(cafenea.getName()) && adress.getText().equals(cafenea.getAddress())) {
+                        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                                new LatLng(cafenea.getLatitude(),
+                                        cafenea.getLongitude()), 20));
+                        srch = googleMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                .title(cafenea.getName())
+                                .snippet(cafenea.getAddress())
+                                .icon(BitmapDescriptorFactory.defaultMarker
+                                        (BitmapDescriptorFactory.HUE_AZURE)));
+                    }
+                }
+                try {
+                    InfoPanel(srch);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                viewFlipper.setOutAnimation(HomeFragment.this.requireContext(), R.anim.slide_out_left);
+                viewFlipper.showPrevious();
+            });
             // Return the completed view to render on screen
             return convertView;
         }
     }
+public void InfoPanel(Marker marker) throws IOException {
+        infoP.setVisibility(View.VISIBLE);
+    LinkedList<Cafenea> info = new LinkedList<>();
+    if (cache.isEmpty()) {
+        verificareJson();
+        read_file(HomeFragment.this.requireContext(), fileName, cache);
+    }
+    for (Cafenea cafenea1 : cache) {
+        if (marker.getPosition().latitude == cafenea1.getLatitude() && marker.getPosition().longitude == cafenea1.getLongitude()) {
+            info.add(cafenea1);
+            Log.e("PIZZAaasd", "RRRRRRRR" + marker.getTitle());
+            break;
+        }
+    }
+    UsersAdapter2  adapter = new UsersAdapter2(HomeFragment.this.requireContext(), info);
+    infoP.setAdapter(adapter);
 
+}
+
+
+    //Format afisare rezultate cautare
+    public class UsersAdapter2 extends ArrayAdapter<Cafenea> {
+        public UsersAdapter2(@NonNull Context context, LinkedList<Cafenea> users) {
+            super(context, 0, users);
+        }
+        @NonNull
+        @Override
+        //Creare butoane si elemente de afisare
+        public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+            // Get the data item for this position
+            final Cafenea user = getItem(position);
+            // Check if an existing view is being reused, otherwise inflate the view
+            if (convertView == null) {
+                convertView = LayoutInflater.from(getContext()).inflate(R.layout.infopanel, parent, false);
+            }
+            // Lookup view for data population
+            final View finalConvertView = convertView;
+            final TextView info = finalConvertView.findViewById(R.id.textView2);
+            assert user != null;
+            info.setText(user.getName());
+
+
+
+            // Return the completed view to render on screen
+            return convertView;
+        }
+    }
 }
 
 //ZONA COMENTARII:
