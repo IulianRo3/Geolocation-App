@@ -49,6 +49,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -71,6 +72,9 @@ import java.util.Locale;
 import java.util.Objects;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
+
+    private BottomSheetBehavior mBottomSheetBehavior;
+    View bottomSheet;
 
     static ArrayList<Marker> chunk = new ArrayList<>();
     public
@@ -258,10 +262,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         next.setOnClickListener(this);
         negasit = view.findViewById(R.id.GasitNimic);
         infoP = view.findViewById(R.id.infoP);
-        infoP.setVisibility(View.GONE);
+        bottomSheet = view.findViewById(R.id.bottom_sheet);
+        mBottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
+        mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+
         //Apelare functii de cautare
         SetOnQuery();
-
 
         return view;
     }
@@ -445,7 +451,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         googleMap.setOnInfoWindowClickListener(marker -> {
                     if (srch != null) {
                         if (marker.getPosition().equals(srch.getPosition())) {
-                            next.setVisibility(View.GONE);
                             try {
                                 InfoPanel(marker);
                             } catch (IOException e) {
@@ -455,7 +460,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         }
 
                     } else if (chunk.isEmpty()) {
-                        next.setVisibility(View.GONE);
+
                         try {
                             InfoPanel(marker);
                         } catch (IOException e) {
@@ -464,7 +469,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         Toast.makeText(HomeFragment.this.requireContext(), "" + marker.getTitle(), Toast.LENGTH_SHORT).show();
 
                     } else {
-                        next.setVisibility(View.GONE);
+
                         try {
                             InfoPanel(marker);
                         } catch (IOException e) {
@@ -563,6 +568,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     //OnBackPressedCallBack - setare functie buton de back
     class Back implements Runnable {
+
         Handler sh = new Handler();
         @Override
         public void run() {
@@ -572,19 +578,25 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 ) {
                     @Override
                     public void handleOnBackPressed() {
-                        if(infoP.getVisibility() == View.VISIBLE){
-
-                            next.setVisibility(View.VISIBLE);
-                            infoP.setVisibility(View.GONE);
-                            if(srch != null){
-                                srch.remove();
-                                srch = null;
-                            }
+                        switch (mBottomSheetBehavior.getState()){
+                            case BottomSheetBehavior.STATE_EXPANDED:
+                                mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                                break;
+                            case BottomSheetBehavior.STATE_COLLAPSED:
+                                mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                                if(srch != null){
+                                    srch.remove();
+                                    srch = null;
+                                }
+                                break;
+                             case BottomSheetBehavior.STATE_HIDDEN:
+                                 if(srch != null){
+                                     srch.remove();
+                                     srch = null;
+                                 }else {
+                                 viewFlipper.showPrevious();}
+                                 break;
                         }
-                        else {
-                            viewFlipper.showPrevious();
-                        }
-
                     }
                 };
                 requireActivity().getOnBackPressedDispatcher().addCallback(
@@ -977,7 +989,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 public void InfoPanel(Marker marker) throws IOException {
-        infoP.setVisibility(View.VISIBLE);
+    mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
     LinkedList<Cafenea> info = new LinkedList<>();
     if (cache.isEmpty()) {
         verificareJson();
@@ -997,7 +1009,7 @@ public void InfoPanel(Marker marker) throws IOException {
 
 
     //Format afisare rezultate cautare
-    public class UsersAdapter2 extends ArrayAdapter<Cafenea> {
+    public static class UsersAdapter2 extends ArrayAdapter<Cafenea> {
         public UsersAdapter2(@NonNull Context context, LinkedList<Cafenea> users) {
             super(context, 0, users);
         }
