@@ -59,16 +59,15 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent">
-                
+
                 <androidx.core.widget.NestedScrollView
                     android:id="@+id/bottom_sheet"
                     android:layout_width="match_parent"
-                    android:layout_height="350dp"
+                    android:layout_height="419dp"
                     android:background="@android:color/holo_blue_light"
                     app:behavior_hideable="true"
                     app:behavior_peekHeight="55dp"
-                    app:layout_behavior="@string/bottom_sheet_behavior"
-                    >
+                    app:layout_behavior="@string/bottom_sheet_behavior">
 
                     <ListView
                         android:id="@+id/infoP"

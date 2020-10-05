@@ -83,6 +83,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     double longitudine;
     String fileName = "yourFileName";
     boolean json;
+    boolean orientare;
     boolean fisier;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
     @SuppressLint("StaticFieldLeak")
@@ -229,10 +230,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
-
 
         mMapView.getMapAsync(this);
         Log.e("PIZZA", String.valueOf(MainActivity.currentLocation1));
@@ -297,7 +296,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
                         //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
                     }
-                }, 200);
+                }, 125);
             }
 
         } else {
@@ -341,6 +340,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         super.onResume();
         new Async(HomeFragment.this).execute();
         mMapView.onResume();
+
         if (requestingLocationUpdates) {
             startLocationUpdates();
         }
@@ -396,12 +396,15 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onPause() {
         super.onPause();
+
+
         mMapView.onPause();
         MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
         if (googleMap != null) {
             mgr.saveMapState(googleMap);
             stopLocationUpdates();
         }
+        removeAllMarkers(chunk);
     }
 
     //In caz ca se schimba limba/se roteste sa nu se distruga appul.E apelat in main(CreateView)
@@ -433,9 +436,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onMapReady(GoogleMap mMap) {
         googleMap = mMap;
-        pozitie = googleMap.getCameraPosition();
-        latitudine = pozitie.target.latitude;
-        longitudine = pozitie.target.longitude;
+        MapRdy mrd = new MapRdy();
         googleMap.setOnMapLongClickListener(latLng -> {
             for (Marker marker : mrk) {
                 if (latLng.latitude <= marker.getPosition().latitude + 0.0014 && latLng.latitude >= marker.getPosition().latitude - 0.0001) {
@@ -508,7 +509,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
             return false;
         });
-        MapRdy mrd = new MapRdy();
+
+
+
 
         new Thread(mrd).start();
 
@@ -532,6 +535,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     longitudine = pozitie.target.longitude;
 
                     if (pozitie.zoom > 16.0 && chunk.isEmpty()) {
+                        Log.e("MARIME CHUNK",""+chunk.size());
                         if (!json) {
                             databaseCafea.addListenerForSingleValueEvent(CameraEventListener);
                         } else {
@@ -548,7 +552,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         }
 
 
-                    } else if (pozitie.zoom < 15.0) {
+                    }
+
+                    if (pozitie.zoom < 15.0) {
                         removeAllMarkers(chunk);
 
 
@@ -559,6 +565,34 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         };
         Thread map = new Thread(r);
         new Thread(map).start();
+        final Handler handler = new Handler();
+
+        handler.postDelayed(() -> {
+
+            pozitie = googleMap.getCameraPosition();
+            latitudine = pozitie.target.latitude;
+            longitudine = pozitie.target.longitude;
+            Log.e("POZITIE",""+pozitie.zoom);
+            if (pozitie.zoom > 16.0 && chunk.isEmpty()) {
+                Log.e("MARIME CHUNK",""+chunk.size());
+                if (!json) {
+                    databaseCafea.addListenerForSingleValueEvent(CameraEventListener);
+                } else {
+                    for (Cafenea cafenea : cache) {
+                        chunk.add(mMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                .title(cafenea.getName())
+                                .snippet(cafenea.getAddress())
+                                .icon(BitmapDescriptorFactory.defaultMarker
+                                        (BitmapDescriptorFactory.HUE_AZURE))));
+                        Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
+                    }
+
+                }
+
+
+            }
+        },175);
     }
 
     private void stopLocationUpdates() {
@@ -589,13 +623,13 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                     srch = null;
                                 }
                                 break;
-                             case BottomSheetBehavior.STATE_HIDDEN:
-                                 if(srch != null){
-                                     srch.remove();
-                                     srch = null;
-                                 }else {
-                                 viewFlipper.showPrevious();}
-                                 break;
+                            case BottomSheetBehavior.STATE_HIDDEN:
+                                if(srch != null){
+                                    srch.remove();
+                                    srch = null;
+                                }else {
+                                    viewFlipper.showPrevious();}
+                                break;
                         }
                     }
                 };
@@ -650,6 +684,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             mgr = new MapStateManager(activity.requireContext());
             if (mgr.getSavedCameraPosition() != null) {
                 position = mgr.getSavedCameraPosition();
+
             }
 
             locationCallback = new LocationCallback() {
@@ -905,6 +940,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     public void onSaveInstanceState(Bundle savedInstanceState) {
         savedInstanceState.putSerializable(REQUESTING_LOCATION_UPDATES_KEY, requestingLocationUpdates);
+
         super.onSaveInstanceState(savedInstanceState);
     }
 
@@ -988,24 +1024,24 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             return convertView;
         }
     }
-public void InfoPanel(Marker marker) throws IOException {
-    mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-    LinkedList<Cafenea> info = new LinkedList<>();
-    if (cache.isEmpty()) {
-        verificareJson();
-        read_file(HomeFragment.this.requireContext(), fileName, cache);
-    }
-    for (Cafenea cafenea1 : cache) {
-        if (marker.getPosition().latitude == cafenea1.getLatitude() && marker.getPosition().longitude == cafenea1.getLongitude()) {
-            info.add(cafenea1);
-            Log.e("PIZZAaasd", "RRRRRRRR" + marker.getTitle());
-            break;
+    public void InfoPanel(Marker marker) throws IOException {
+        mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        LinkedList<Cafenea> info = new LinkedList<>();
+        if (cache.isEmpty()) {
+            verificareJson();
+            read_file(HomeFragment.this.requireContext(), fileName, cache);
         }
-    }
-    UsersAdapter2  adapter = new UsersAdapter2(HomeFragment.this.requireContext(), info);
-    infoP.setAdapter(adapter);
+        for (Cafenea cafenea1 : cache) {
+            if (marker.getPosition().latitude == cafenea1.getLatitude() && marker.getPosition().longitude == cafenea1.getLongitude()) {
+                info.add(cafenea1);
+                Log.e("PIZZAaasd", "RRRRRRRR" + marker.getTitle());
+                break;
+            }
+        }
+        UsersAdapter2  adapter = new UsersAdapter2(HomeFragment.this.requireContext(), info);
+        infoP.setAdapter(adapter);
 
-}
+    }
 
 
     //Format afisare rezultate cautare
