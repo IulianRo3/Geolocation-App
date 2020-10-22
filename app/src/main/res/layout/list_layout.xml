@@ -8,6 +8,8 @@
         android:id="@+id/nume_text"
         android:layout_width="357dp"
         android:layout_height="58dp"
+        android:ellipsize="end"
+        android:lines="1"
         android:autoSizeTextType="uniform"
         android:text="@string/Titlu"
         android:textSize="12sp"
@@ -21,6 +23,8 @@
     <TextView
         android:id="@+id/adresa_text"
         android:layout_width="348dp"
+        android:ellipsize="end"
+        android:lines="2"
         android:layout_height="33dp"
         android:autoSizeTextType="uniform"
         android:text="@string/Adresa"

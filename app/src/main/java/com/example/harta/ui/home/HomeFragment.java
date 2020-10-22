@@ -74,6 +74,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
+import jp.wasabeef.glide.transformations.BlurTransformation;
+
+import static com.bumptech.glide.request.RequestOptions.bitmapTransform;
+
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
@@ -110,7 +114,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     FusedLocationProviderClient fusedLocationProviderClient;
     ListView infoP;
     Button next;
-
+    Button center;
     ValueEventListener CameraEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -141,6 +145,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         public void onCancelled(@NonNull DatabaseError error) {
         }
     };
+
 
     private String getCityName(double latitude, double longitude) throws IOException {
         String myCity;
@@ -257,7 +262,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         Log.e("Json", "" + json);
         ListenerForSingeAndMGR();
         lv = view.findViewById(R.id.result_list);
-        Button center = view.findViewById(R.id.Center);
+        center = view.findViewById(R.id.Center);
         center.setOnClickListener(this);
         searchView = view.findViewById(R.id.sv_location);
         updateValuesFromBundle(savedInstanceState);
@@ -275,7 +280,33 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
         //Apelare functii de cautare
         SetOnQuery();
+        mBottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+            @Override
+            public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                switch (newState) {
+                    case BottomSheetBehavior.STATE_EXPANDED:
+                    case BottomSheetBehavior.STATE_DRAGGING:
+                    case BottomSheetBehavior.STATE_SETTLING:
+                        Toast.makeText(HomeFragment.this.requireContext(), "EXPANDED", Toast.LENGTH_SHORT).show();
+                        next.setVisibility(View.GONE);
+                        center.setVisibility(View.GONE);
+                        break;
+                    case BottomSheetBehavior.STATE_COLLAPSED:
 
+                    case BottomSheetBehavior.STATE_HALF_EXPANDED:
+                    case BottomSheetBehavior.STATE_HIDDEN:
+
+                        next.setVisibility(View.VISIBLE);
+                        center.setVisibility(View.VISIBLE);
+                        break;
+                }
+            }
+
+            @Override
+            public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+
+            }
+        });
         return view;
     }
 
@@ -384,8 +415,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     Toast.makeText(HomeFragment.this.getContext(), "Can't find location", Toast.LENGTH_SHORT).show();
                 }
             }
+
         }
     }
+
 
     //Face update uri in timp real
     @SuppressLint("MissingPermission")
@@ -1091,12 +1124,13 @@ public void InfoPanel(Marker marker) throws IOException {
             handler.postDelayed(() -> {
                 Glide.with(HomeFragment.this.requireContext())
                         .load(detaliu.getPoza())
+                        .apply(bitmapTransform(new BlurTransformation(22)))
                         .into(imageView);
                 info_mic.setText(detaliu.getInfo1());
                 tag1.setText(detaliu.getTag().get(0));
                 tag2.setText(detaliu.getTag().get(1));
                 tag3.setText(detaliu.getTag().get(2));
-            }, 200);
+            }, 300);
 
 
         }
