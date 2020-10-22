@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.TextView;
@@ -28,8 +29,10 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 
+import com.bumptech.glide.Glide;
 import com.example.harta.Cafenea;
 import com.example.harta.Cafenele;
+import com.example.harta.Detalii;
 import com.example.harta.MainActivity;
 import com.example.harta.MapStateManager;
 import com.example.harta.R;
@@ -71,6 +74,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
+
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
     private BottomSheetBehavior mBottomSheetBehavior;
@@ -82,6 +86,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     static CameraPosition pozitie;
     double longitudine;
     String fileName = "yourFileName";
+
     boolean json;
     boolean fisier;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
@@ -105,6 +110,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     FusedLocationProviderClient fusedLocationProviderClient;
     ListView infoP;
     Button next;
+
     ValueEventListener CameraEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -213,7 +219,10 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         public void onCancelled(@NonNull DatabaseError error) {
         }
     };
+
+
     DatabaseReference databaseCafea = FirebaseDatabase.getInstance().getReference("Cafenea");
+
 
     private void removeAllMarkers(ArrayList<Marker> AllMarkers) {
         for (Marker mLocationMarker : AllMarkers) {
@@ -229,10 +238,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
-
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
-
 
         mMapView.getMapAsync(this);
         Log.e("PIZZA", String.valueOf(MainActivity.currentLocation1));
@@ -297,7 +304,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
                         //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
                     }
-                }, 200);
+                }, 150);
             }
 
         } else {
@@ -341,6 +348,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         super.onResume();
         new Async(HomeFragment.this).execute();
         mMapView.onResume();
+
         if (requestingLocationUpdates) {
             startLocationUpdates();
         }
@@ -396,12 +404,15 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onPause() {
         super.onPause();
+
+
         mMapView.onPause();
         MapStateManager mgr = new MapStateManager(HomeFragment.this.requireContext());
         if (googleMap != null) {
             mgr.saveMapState(googleMap);
             stopLocationUpdates();
         }
+        removeAllMarkers(chunk);
     }
 
     //In caz ca se schimba limba/se roteste sa nu se distruga appul.E apelat in main(CreateView)
@@ -433,9 +444,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onMapReady(GoogleMap mMap) {
         googleMap = mMap;
-        pozitie = googleMap.getCameraPosition();
-        latitudine = pozitie.target.latitude;
-        longitudine = pozitie.target.longitude;
+        MapRdy mrd = new MapRdy();
         googleMap.setOnMapLongClickListener(latLng -> {
             for (Marker marker : mrk) {
                 if (latLng.latitude <= marker.getPosition().latitude + 0.0014 && latLng.latitude >= marker.getPosition().latitude - 0.0001) {
@@ -508,7 +517,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
             return false;
         });
-        MapRdy mrd = new MapRdy();
+
 
         new Thread(mrd).start();
 
@@ -532,6 +541,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                     longitudine = pozitie.target.longitude;
 
                     if (pozitie.zoom > 16.0 && chunk.isEmpty()) {
+                        Log.e("MARIME CHUNK", "" + chunk.size());
                         if (!json) {
                             databaseCafea.addListenerForSingleValueEvent(CameraEventListener);
                         } else {
@@ -548,7 +558,9 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                         }
 
 
-                    } else if (pozitie.zoom < 15.0) {
+                    }
+
+                    if (pozitie.zoom < 15.0) {
                         removeAllMarkers(chunk);
 
 
@@ -559,54 +571,46 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         };
         Thread map = new Thread(r);
         new Thread(map).start();
+        final Handler handler = new Handler();
+
+        handler.postDelayed(() -> {
+
+            pozitie = googleMap.getCameraPosition();
+            latitudine = pozitie.target.latitude;
+            longitudine = pozitie.target.longitude;
+            Log.e("POZITIE", "" + pozitie.zoom);
+            if (pozitie.zoom > 16.0 && chunk.isEmpty()) {
+                Log.e("MARIME CHUNK", "" + chunk.size());
+                if (!json) {
+                    databaseCafea.addListenerForSingleValueEvent(CameraEventListener);
+                } else {
+                    for (Cafenea cafenea : cache) {
+                        chunk.add(mMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                .title(cafenea.getName())
+                                .snippet(cafenea.getAddress())
+                                .icon(BitmapDescriptorFactory.defaultMarker
+                                        (BitmapDescriptorFactory.HUE_AZURE))));
+                        Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
+                    }
+
+                }
+
+
+            }
+        }, 175);
     }
 
     private void stopLocationUpdates() {
         fusedLocationProviderClient.removeLocationUpdates(locationCallback);
     }
 
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        savedInstanceState.putSerializable(REQUESTING_LOCATION_UPDATES_KEY, requestingLocationUpdates);
 
-    //OnBackPressedCallBack - setare functie buton de back
-    class Back implements Runnable {
-
-        Handler sh = new Handler();
-        @Override
-        public void run() {
-            sh.post(() -> {
-                OnBackPressedCallback callback = new OnBackPressedCallback(
-                        true // default to enabled
-                ) {
-                    @Override
-                    public void handleOnBackPressed() {
-                        switch (mBottomSheetBehavior.getState()){
-                            case BottomSheetBehavior.STATE_EXPANDED:
-                                mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
-                                break;
-                            case BottomSheetBehavior.STATE_COLLAPSED:
-                                mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-                                if(srch != null){
-                                    srch.remove();
-                                    srch = null;
-                                }
-                                break;
-                             case BottomSheetBehavior.STATE_HIDDEN:
-                                 if(srch != null){
-                                     srch.remove();
-                                     srch = null;
-                                 }else {
-                                 viewFlipper.showPrevious();}
-                                 break;
-                        }
-                    }
-                };
-                requireActivity().getOnBackPressedDispatcher().addCallback(
-                        getViewLifecycleOwner(), // LifecycleOwner
-                        callback);
-            });
-        }
+        super.onSaveInstanceState(savedInstanceState);
     }
 //70 ms
-
 
     static class Async extends AsyncTask<Void, Void, Void> {
         private final WeakReference<HomeFragment> wk;
@@ -650,6 +654,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             mgr = new MapStateManager(activity.requireContext());
             if (mgr.getSavedCameraPosition() != null) {
                 position = mgr.getSavedCameraPosition();
+
             }
 
             locationCallback = new LocationCallback() {
@@ -903,12 +908,51 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         mMapView.onLowMemory();
     }
 
-    public void onSaveInstanceState(Bundle savedInstanceState) {
-        savedInstanceState.putSerializable(REQUESTING_LOCATION_UPDATES_KEY, requestingLocationUpdates);
-        super.onSaveInstanceState(savedInstanceState);
+    //OnBackPressedCallBack - setare functie buton de back
+    class Back implements Runnable {
+
+        Handler sh = new Handler();
+
+        @Override
+        public void run() {
+            sh.post(() -> {
+                OnBackPressedCallback callback = new OnBackPressedCallback(
+                        true // default to enabled
+                ) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        switch (mBottomSheetBehavior.getState()) {
+                            case BottomSheetBehavior.STATE_EXPANDED:
+                                mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+                                break;
+                            case BottomSheetBehavior.STATE_COLLAPSED:
+                                mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                                if (srch != null) {
+                                    srch.remove();
+                                    srch = null;
+                                }
+                                break;
+                            case BottomSheetBehavior.STATE_HIDDEN:
+                                if (srch != null) {
+                                    srch.remove();
+                                    srch = null;
+                                } else {
+                                    viewFlipper.showPrevious();
+                                }
+                                break;
+                            case BottomSheetBehavior.STATE_DRAGGING:
+                            case BottomSheetBehavior.STATE_HALF_EXPANDED:
+                            case BottomSheetBehavior.STATE_SETTLING:
+                                break;
+                        }
+                    }
+                };
+                requireActivity().getOnBackPressedDispatcher().addCallback(
+                        getViewLifecycleOwner(), // LifecycleOwner
+                        callback);
+            });
+        }
     }
-
-
 
 
 //--------------------------------------------------------------------------------------------------------------------
@@ -1007,12 +1051,60 @@ public void InfoPanel(Marker marker) throws IOException {
 
 }
 
-
     //Format afisare rezultate cautare
-    public static class UsersAdapter2 extends ArrayAdapter<Cafenea> {
+    public class UsersAdapter2 extends ArrayAdapter<Cafenea> {
+        public Detalii detaliu;
+        String ID;
+        ValueEventListener DetaliiEventListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    //Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                    for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                        Detalii detalii = postSnapshot.getValue(Detalii.class);
+
+                        assert detalii != null;
+
+                        if (detalii.getId().equals(ID)) {
+                            detaliu = new Detalii(detalii.getId(), detalii.getPoza(), detalii.getInfo1(), detalii.getTag());
+
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        };
+        DatabaseReference databaseDetalii = FirebaseDatabase.getInstance().getReference("Detalii");
+
+        public void AfisarePoze(Cafenea cafenea, View view) {
+            ID = cafenea.getId();
+            databaseDetalii.addListenerForSingleValueEvent(DetaliiEventListener);
+            ImageView imageView = view.findViewById(R.id.imageView3);
+            TextView info_mic = view.findViewById(R.id.textView10);
+            TextView tag1 = view.findViewById(R.id.textView7);
+            TextView tag2 = view.findViewById(R.id.textView8);
+            TextView tag3 = view.findViewById(R.id.textView9);
+            final Handler handler = new Handler();
+            handler.postDelayed(() -> {
+                Glide.with(HomeFragment.this.requireContext())
+                        .load(detaliu.getPoza())
+                        .into(imageView);
+                info_mic.setText(detaliu.getInfo1());
+                tag1.setText(detaliu.getTag().get(0));
+                tag2.setText(detaliu.getTag().get(1));
+                tag3.setText(detaliu.getTag().get(2));
+            }, 200);
+
+
+        }
+
         public UsersAdapter2(@NonNull Context context, LinkedList<Cafenea> users) {
             super(context, 0, users);
         }
+
         @NonNull
         @Override
         //Creare butoane si elemente de afisare
@@ -1028,6 +1120,7 @@ public void InfoPanel(Marker marker) throws IOException {
             final TextView info = finalConvertView.findViewById(R.id.textView2);
             assert user != null;
             info.setText(user.getName());
+            AfisarePoze(user, convertView);
 
 
 

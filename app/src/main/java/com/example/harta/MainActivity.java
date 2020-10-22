@@ -155,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
         Log.e("Fisier e scris", "" + json);
     }
 
+
     @SuppressLint("NewApi")
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
@@ -171,14 +172,17 @@ public class MainActivity extends AppCompatActivity {
 
             requestPermissions(new String[]
                     {Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_CODE);
-            try {
-
-
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            for (int i = 0; i < 600; i++) {
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    i = 600;
+                }
             }
-
         }
 
         new Thread(fll).start();
