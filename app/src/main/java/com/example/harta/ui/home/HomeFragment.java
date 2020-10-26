@@ -32,6 +32,7 @@ import androidx.fragment.app.Fragment;
 import com.bumptech.glide.Glide;
 import com.example.harta.Cafenea;
 import com.example.harta.Cafenele;
+import com.example.harta.Details;
 import com.example.harta.Detalii;
 import com.example.harta.MainActivity;
 import com.example.harta.MapStateManager;
@@ -90,7 +91,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     static CameraPosition pozitie;
     double longitudine;
     String fileName = "yourFileName";
-
+    public ArrayList<Detalii> detaliu = new ArrayList<>();
     boolean json;
     boolean fisier;
     private static final String REQUESTING_LOCATION_UPDATES_KEY = "Update";
@@ -195,6 +196,54 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
+    public void read_fileD(@NonNull Context context, String filename, ArrayList<Detalii> detaliu) {
+        try {
+            FileInputStream fisr = context.openFileInput(filename);
+            InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
+            BufferedReader bufferedReaderr = new BufferedReader(isrr);
+            StringBuilder sbr = new StringBuilder();
+            String lines;
+            while ((lines = bufferedReaderr.readLine()) != null) {
+                sbr.append(lines).append("\n");
+            }
+            Gson gs = new Gson();
+            //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
+            //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
+            //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
+            Details details = gs.fromJson(String.valueOf(sbr), Details.class);
+            //Log.e("Detaliii",""+details.getDetails().isEmpty());
+
+            if (!detaliu.isEmpty()) {
+                detaliu.clear();
+            }
+            detaliu.addAll(details.getDetalii());
+            Log.e("Marime cacheD", "" + detaliu.size());
+            //Log.e("Citire", "" + sbr.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void read_fileP(@NonNull Context context) {
+        try {
+            FileInputStream fisr = context.openFileInput("PozeCache");
+            InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
+            BufferedReader bufferedReaderr = new BufferedReader(isrr);
+            StringBuilder sbr = new StringBuilder();
+            String lines;
+            while ((lines = bufferedReaderr.readLine()) != null) {
+                sbr.append(lines).append("\n");
+            }
+            //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
+            //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
+            //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
+
+            //Log.e("Detaliii",""+details.getDetails().isEmpty());
+            Log.e("Citire", "" + sbr.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 
     ValueEventListener valueEventListener = new ValueEventListener() {
@@ -277,6 +326,11 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         bottomSheet = view.findViewById(R.id.bottom_sheet);
         mBottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
         mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+        if (MainActivity.Poze1) {
+            read_fileP(HomeFragment.this.requireContext());
+            Log.e("CITIRE POZE", "S-A APELAT");
+        }
+
 
         //Apelare functii de cautare
         SetOnQuery();
@@ -585,7 +639,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                         .snippet(cafenea.getAddress())
                                         .icon(BitmapDescriptorFactory.defaultMarker
                                                 (BitmapDescriptorFactory.HUE_AZURE))));
-                                Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
+                                //Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
                             }
 
                         }
@@ -624,7 +678,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                                 .snippet(cafenea.getAddress())
                                 .icon(BitmapDescriptorFactory.defaultMarker
                                         (BitmapDescriptorFactory.HUE_AZURE))));
-                        Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
+                        //  Log.e("chunk", "" + chunk.get(0).getPosition().longitude);
                     }
 
                 }
@@ -1086,7 +1140,7 @@ public void InfoPanel(Marker marker) throws IOException {
 
     //Format afisare rezultate cautare
     public class UsersAdapter2 extends ArrayAdapter<Cafenea> {
-        public Detalii detaliu;
+        public Detalii detalis;
         String ID;
         ValueEventListener DetaliiEventListener = new ValueEventListener() {
             @Override
@@ -1099,7 +1153,7 @@ public void InfoPanel(Marker marker) throws IOException {
                         assert detalii != null;
 
                         if (detalii.getId().equals(ID)) {
-                            detaliu = new Detalii(detalii.getId(), detalii.getPoza(), detalii.getInfo1(), detalii.getTag());
+                            detalis = new Detalii(detalii.getId(), detalii.getPoza(), detalii.getInfo1(), detalii.getTag());
 
                         }
                     }
@@ -1114,23 +1168,41 @@ public void InfoPanel(Marker marker) throws IOException {
 
         public void AfisarePoze(Cafenea cafenea, View view) {
             ID = cafenea.getId();
-            databaseDetalii.addListenerForSingleValueEvent(DetaliiEventListener);
             ImageView imageView = view.findViewById(R.id.imageView3);
             TextView info_mic = view.findViewById(R.id.textView10);
             TextView tag1 = view.findViewById(R.id.textView7);
             TextView tag2 = view.findViewById(R.id.textView8);
             TextView tag3 = view.findViewById(R.id.textView9);
-            final Handler handler = new Handler();
-            handler.postDelayed(() -> {
-                Glide.with(HomeFragment.this.requireContext())
-                        .load(detaliu.getPoza())
-                        .apply(bitmapTransform(new BlurTransformation(22)))
-                        .into(imageView);
-                info_mic.setText(detaliu.getInfo1());
-                tag1.setText(detaliu.getTag().get(0));
-                tag2.setText(detaliu.getTag().get(1));
-                tag3.setText(detaliu.getTag().get(2));
-            }, 300);
+            if (MainActivity.fisier1 && MainActivity.json1) {
+                Log.e("CacheD", "S-a facut switch-ul");
+                read_fileD(HomeFragment.this.requireContext(), "DetaliiName", detaliu);
+                for (Detalii detalis : detaliu) {
+                    if (detalis.getId().equals(ID)) {
+                        Glide.with(HomeFragment.this.requireContext())
+                                .load(detalis.getPoza())
+                                .apply(bitmapTransform(new BlurTransformation(22)))
+                                .into(imageView);
+                        info_mic.setText(detalis.getInfo1());
+                        tag1.setText(detalis.getTag().get(0));
+                        tag2.setText(detalis.getTag().get(1));
+                        tag3.setText(detalis.getTag().get(2));
+                    }
+                }
+
+            } else {
+                databaseDetalii.addListenerForSingleValueEvent(DetaliiEventListener);
+                final Handler handler = new Handler();
+                handler.postDelayed(() -> {
+                    Glide.with(HomeFragment.this.requireContext())
+                            .load(detalis.getPoza())
+                            .apply(bitmapTransform(new BlurTransformation(22)))
+                            .into(imageView);
+                    info_mic.setText(detalis.getInfo1());
+                    tag1.setText(detalis.getTag().get(0));
+                    tag2.setText(detalis.getTag().get(1));
+                    tag3.setText(detalis.getTag().get(2));
+                }, 300);
+            }
 
 
         }

@@ -4,6 +4,8 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -33,6 +35,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.gson.Gson;
 import com.google.gson.stream.JsonWriter;
 
 import java.io.BufferedReader;
@@ -43,6 +46,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,11 +59,18 @@ public class MainActivity extends AppCompatActivity {
     private AppBarConfiguration mAppBarConfiguration;
     public static ArrayList<Cafenea> cache = new ArrayList<>();
     public static Location currentLocation1;
+    public static boolean json1;
+    public static boolean fisier1;
+    public static boolean fisier2;
+    public static boolean Poze1;
     public boolean json;
     public boolean fisier;
+    public ArrayList<Detalii> detaliu = new ArrayList<>();
+
     public fetchLastLocation fll = new fetchLastLocation();
     public FusedLocationProviderClient fusedLocationProviderClient;
     DatabaseReference databaseCafea = FirebaseDatabase.getInstance().getReference("Cafenea");
+    DatabaseReference databaseDetalii = FirebaseDatabase.getInstance().getReference("Detalii");
     ValueEventListener cacheEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -85,7 +97,29 @@ public class MainActivity extends AppCompatActivity {
         public void onCancelled(@NonNull DatabaseError error) {
         }
     };
+    ValueEventListener DetaliiEventListener = new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            if (dataSnapshot.exists()) {
+                //Log.e("Count ", "" + dataSnapshot.getChildrenCount());
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+                    Detalii detalii = postSnapshot.getValue(Detalii.class);
 
+                    assert detalii != null;
+                    for (Cafenea cafenea : cache) {
+                        if (detalii.getId().equals(cafenea.getId())) {
+                            detaliu.add(new Detalii(detalii.getId(), detalii.getPoza(), detalii.getInfo1(), detalii.getTag()));
+                        }
+                    }
+
+                }
+            }
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError error) {
+        }
+    };
 
     private String getCityName(double latitude, double longitude) throws IOException {
         String myCity;
@@ -95,6 +129,120 @@ public class MainActivity extends AppCompatActivity {
         return myCity;
     }
 
+    public void CacheImagini() throws IOException {
+        if (fisier1 && json1) {
+            ArrayList<Detalii> detalius = new ArrayList<>();
+            try {
+                FileInputStream fisr = this.openFileInput("DetaliiName");
+                InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
+                BufferedReader bufferedReaderr = new BufferedReader(isrr);
+                StringBuilder sbr = new StringBuilder();
+                String lines;
+                while ((lines = bufferedReaderr.readLine()) != null) {
+                    sbr.append(lines).append("\n");
+                }
+                Gson gs = new Gson();
+                //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
+                //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
+                //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
+                Details details = gs.fromJson(String.valueOf(sbr), Details.class);
+                //Log.e("Detaliii",""+details.getDetails().isEmpty());
+
+                if (!detalius.isEmpty()) {
+                    detalius.clear();
+                }
+                detalius.addAll(details.getDetalii());
+                Log.e("Marime cacheDPoze", "" + detalius.size());
+                //Log.e("Citire", "" + sbr.toString());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            for (Detalii detall : detalius) {
+                URL url = null;
+                try {
+                    url = new URL(detall.getPoza());
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+                FileOutputStream fos = null;
+                fos = this.openFileOutput("PozeCache", Context.MODE_PRIVATE);
+                Bitmap bitmap = null;
+                try {
+                    assert url != null;
+                    bitmap = BitmapFactory.decodeStream(url.openStream());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Log.e("Imagine", "" + bitmap);
+                assert bitmap != null;
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            }
+        }
+    }
+
+    public void ScriereD(String fileName) {
+        databaseDetalii.addListenerForSingleValueEvent(DetaliiEventListener);
+        final Handler handler = new Handler();
+        handler.postDelayed(() -> {
+            FileOutputStream fos = null;
+            try {
+                fos = this.openFileOutput(fileName, Context.MODE_PRIVATE);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            assert fos != null;
+            OutputStreamWriter out = new OutputStreamWriter(fos);
+            JsonWriter writer = new JsonWriter(out);
+            //set indentation for pretty print
+            writer.setIndent("\t");
+            //start writing
+            try {
+                writer.beginObject(); //{
+                writer.name("Detalii").beginArray();
+                for (Detalii detalii : detaliu) {
+
+                    writer.beginObject(); //{
+                    //Log.e("Detalii",""+detalii.getId());
+                    writer.name("id").value(detalii.getId()); // "id": 123
+                    writer.name("poza").value(detalii.getPoza()); // "name": "David"
+                    writer.name("info1").value(detalii.getInfo1()); // "permanent": false
+                    writer.name("tag").beginArray();
+                    writer.value(detalii.getTag().get(0));
+                    writer.value(detalii.getTag().get(1));
+                    writer.value(detalii.getTag().get(2));
+                    writer.endArray();
+                    writer.endObject(); // }
+                }
+                writer.endArray(); // ]
+                writer.endObject(); // }
+                writer.flush();
+
+                //close writer
+                writer.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }, 450);
+
+    }
+
+    public void verificareJson() throws IOException {
+        FileInputStream fis = this.openFileInput("yourFileName");
+        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(isr);
+        File file = this.getFileStreamPath("yourFileName");
+        if (file.exists()) {
+            fisier = true;
+        }
+        if (bufferedReader.readLine() != null) {
+            json = true;
+        }
+        //Log.e("Fisier Exista", "" + fisier1);
+        //Log.e("Fisier e scris", "" + json1);
+    }
 
     public void Scriere(String fileName) {
         databaseCafea.addListenerForSingleValueEvent(cacheEventListener);
@@ -140,21 +288,36 @@ public class MainActivity extends AppCompatActivity {
         }, 450);
     }
 
-    public void verificareJson() throws IOException {
-        FileInputStream fis = this.openFileInput("yourFileName");
+    public void verificareJsonD() throws IOException {
+        FileInputStream fis = this.openFileInput("DetaliiName");
         InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
         BufferedReader bufferedReader = new BufferedReader(isr);
-        File file = this.getFileStreamPath("yourFileName");
+        File file = this.getFileStreamPath("DetaliiName");
         if (file.exists()) {
-            fisier = true;
+            fisier1 = true;
         }
         if (bufferedReader.readLine() != null) {
-            json = true;
+            json1 = true;
         }
-        Log.e("Fisier Exista", "" + fisier);
-        Log.e("Fisier e scris", "" + json);
+        //Log.e("Detalii Exista", "" + fisier);
+        //Log.e("Detalii e scris", "" + json);
     }
 
+    public void verificarePoze() throws IOException {
+
+        Log.e("S-a verificat", "pozele");
+
+        Log.e("Poze e scris", "ceva");
+        FileInputStream fis = this.openFileInput("PozeCache");
+        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(isr);
+        File file = this.getFileStreamPath("PozeCache");
+        if (file.exists()) {
+            fisier2 = true;
+        }
+
+        Log.e("Poze Exista", "" + fisier2);
+    }
 
     @SuppressLint("NewApi")
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -165,6 +328,7 @@ public class MainActivity extends AppCompatActivity {
         new Thread(fll).start();
         try {
             verificareJson();
+            verificareJsonD();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -184,11 +348,26 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-
+        try {
+            verificarePoze();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         new Thread(fll).start();
         if (!fisier && !json) {
             final Handler handler = new Handler();
             handler.postDelayed(() -> Scriere("yourFileName"), 50);
+        }
+        if (!fisier1 && !json1) {
+            final Handler handler = new Handler();
+            handler.postDelayed(() -> ScriereD("DetaliiName"), 50);
+        }
+        if (!fisier2 && !Poze1) {
+            final Handler handler = new Handler();
+            handler.postDelayed(() -> {
+                Imagini IMag = new Imagini();
+                new Thread(IMag).start();
+            }, 50);
         }
 
         setContentView(R.layout.activity_main);
@@ -209,6 +388,65 @@ public class MainActivity extends AppCompatActivity {
         NavigationUI.setupWithNavController(navigationView, navController);
 
 
+    }
+
+    class Imagini implements Runnable {
+
+        @Override
+        public void run() {
+            if (fisier1 && json1) {
+                ArrayList<Detalii> detalius = new ArrayList<>();
+                try {
+                    FileInputStream fisr = openFileInput("DetaliiName");
+                    InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
+                    BufferedReader bufferedReaderr = new BufferedReader(isrr);
+                    StringBuilder sbr = new StringBuilder();
+                    String lines;
+                    while ((lines = bufferedReaderr.readLine()) != null) {
+                        sbr.append(lines).append("\n");
+                    }
+                    Gson gs = new Gson();
+                    //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
+                    //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
+                    //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
+                    Details details = gs.fromJson(String.valueOf(sbr), Details.class);
+                    //Log.e("Detaliii",""+details.getDetails().isEmpty());
+
+                    if (!detalius.isEmpty()) {
+                        detalius.clear();
+                    }
+                    detalius.addAll(details.getDetalii());
+                    Log.e("Marime cacheDPoze", "" + detalius.size());
+                    //Log.e("Citire", "" + sbr.toString());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                for (Detalii detall : detalius) {
+                    URL url = null;
+                    try {
+                        url = new URL(detall.getPoza());
+                    } catch (MalformedURLException e) {
+                        e.printStackTrace();
+                    }
+                    File file = new File(String.valueOf(getCacheDir()));
+                    Bitmap bitmap = null;
+                    try {
+                        assert url != null;
+                        bitmap = BitmapFactory.decodeStream(url.openStream());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    Log.e("Imagine", "" + bitmap);
+                    try {
+                        assert bitmap != null;
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, new FileOutputStream(file));
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 
     class fetchLastLocation implements Runnable {
