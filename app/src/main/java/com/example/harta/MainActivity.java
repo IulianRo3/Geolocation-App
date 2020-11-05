@@ -4,11 +4,10 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -35,7 +34,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.gson.Gson;
 import com.google.gson.stream.JsonWriter;
 
 import java.io.BufferedReader;
@@ -46,14 +44,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements android.location.LocationListener {
 
     private static final int REQUEST_CODE = 101;
     private AppBarConfiguration mAppBarConfiguration;
@@ -61,12 +57,10 @@ public class MainActivity extends AppCompatActivity {
     public static Location currentLocation1;
     public static boolean json1;
     public static boolean fisier1;
-    public static boolean fisier2;
-    public static boolean Poze1;
     public boolean json;
     public boolean fisier;
     public ArrayList<Detalii> detaliu = new ArrayList<>();
-
+    public static Location currentLocation2;
     public fetchLastLocation fll = new fetchLastLocation();
     public FusedLocationProviderClient fusedLocationProviderClient;
     DatabaseReference databaseCafea = FirebaseDatabase.getInstance().getReference("Cafenea");
@@ -127,58 +121,6 @@ public class MainActivity extends AppCompatActivity {
         List<Address> addresses = geocoder.getFromLocation(latitude, longitude, 1);
         myCity = addresses.get(0).getLocality();
         return myCity;
-    }
-
-    public void CacheImagini() throws IOException {
-        if (fisier1 && json1) {
-            ArrayList<Detalii> detalius = new ArrayList<>();
-            try {
-                FileInputStream fisr = this.openFileInput("DetaliiName");
-                InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
-                BufferedReader bufferedReaderr = new BufferedReader(isrr);
-                StringBuilder sbr = new StringBuilder();
-                String lines;
-                while ((lines = bufferedReaderr.readLine()) != null) {
-                    sbr.append(lines).append("\n");
-                }
-                Gson gs = new Gson();
-                //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
-                //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
-                //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
-                Details details = gs.fromJson(String.valueOf(sbr), Details.class);
-                //Log.e("Detaliii",""+details.getDetails().isEmpty());
-
-                if (!detalius.isEmpty()) {
-                    detalius.clear();
-                }
-                detalius.addAll(details.getDetalii());
-                Log.e("Marime cacheDPoze", "" + detalius.size());
-                //Log.e("Citire", "" + sbr.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            for (Detalii detall : detalius) {
-                URL url = null;
-                try {
-                    url = new URL(detall.getPoza());
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }
-                FileOutputStream fos = null;
-                fos = this.openFileOutput("PozeCache", Context.MODE_PRIVATE);
-                Bitmap bitmap = null;
-                try {
-                    assert url != null;
-                    bitmap = BitmapFactory.decodeStream(url.openStream());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                Log.e("Imagine", "" + bitmap);
-                assert bitmap != null;
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            }
-        }
     }
 
     public void ScriereD(String fileName) {
@@ -303,21 +245,7 @@ public class MainActivity extends AppCompatActivity {
         //Log.e("Detalii e scris", "" + json);
     }
 
-    public void verificarePoze() throws IOException {
 
-        Log.e("S-a verificat", "pozele");
-
-        Log.e("Poze e scris", "ceva");
-        FileInputStream fis = this.openFileInput("PozeCache");
-        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
-        BufferedReader bufferedReader = new BufferedReader(isr);
-        File file = this.getFileStreamPath("PozeCache");
-        if (file.exists()) {
-            fisier2 = true;
-        }
-
-        Log.e("Poze Exista", "" + fisier2);
-    }
 
     @SuppressLint("NewApi")
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -348,11 +276,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
-        try {
-            verificarePoze();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
         new Thread(fll).start();
         if (!fisier && !json) {
             final Handler handler = new Handler();
@@ -362,14 +286,24 @@ public class MainActivity extends AppCompatActivity {
             final Handler handler = new Handler();
             handler.postDelayed(() -> ScriereD("DetaliiName"), 50);
         }
-        if (!fisier2 && !Poze1) {
-            final Handler handler = new Handler();
-            handler.postDelayed(() -> {
-                Imagini IMag = new Imagini();
-                new Thread(IMag).start();
-            }, 50);
-        }
+        Handler myHandler = new Handler();
+        int delay = 1000; // 1000 milliseconds == 1 second
 
+        myHandler.postDelayed(new Runnable() {
+            @SuppressLint("MissingPermission")
+            public void run() {
+                System.out.println("myHandler: here!");
+                LocationListener myLoc = new LocationListener();
+                LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+                if (lm != null) {
+                    lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, myLoc);
+
+                }//Log.e("LOCATIE", "z" + LocationListener.location);// Do your work here
+                currentLocation2 = LocationListener.location;
+                //Log.e("LOCATIE", "z" + currentLocation2);
+                myHandler.postDelayed(this, delay);
+            }
+        }, delay);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -390,80 +324,24 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    class Imagini implements Runnable {
+    @Override
+    public void onLocationChanged(Location location) {
 
-        @Override
-        public void run() {
-            if (fisier1 && json1) {
-                ArrayList<Detalii> detalius = new ArrayList<>();
-                try {
-                    FileInputStream fisr = openFileInput("DetaliiName");
-                    InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
-                    BufferedReader bufferedReaderr = new BufferedReader(isrr);
-                    StringBuilder sbr = new StringBuilder();
-                    String lines;
-                    while ((lines = bufferedReaderr.readLine()) != null) {
-                        sbr.append(lines).append("\n");
-                    }
-                    Gson gs = new Gson();
-                    //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
-                    //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
-                    //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
-                    Details details = gs.fromJson(String.valueOf(sbr), Details.class);
-                    //Log.e("Detaliii",""+details.getDetails().isEmpty());
-
-                    if (!detalius.isEmpty()) {
-                        detalius.clear();
-                    }
-                    detalius.addAll(details.getDetalii());
-                    Log.e("Marime cacheDPoze", "" + detalius.size());
-                    //Log.e("Citire", "" + sbr.toString());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                for (Detalii detall : detalius) {
-                    URL url = null;
-                    try {
-                        url = new URL(detall.getPoza());
-                    } catch (MalformedURLException e) {
-                        e.printStackTrace();
-                    }
-                    File file = new File(String.valueOf(getCacheDir()));
-                    Bitmap bitmap = null;
-                    try {
-                        assert url != null;
-                        bitmap = BitmapFactory.decodeStream(url.openStream());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    Log.e("Imagine", "" + bitmap);
-                    try {
-                        assert bitmap != null;
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, new FileOutputStream(file));
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
     }
 
-    class fetchLastLocation implements Runnable {
-        @Override
-        public void run() {
-            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
 
-            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
-            task.addOnSuccessListener(location -> {
-                if (task.isSuccessful() && task.getResult() != null) {
-                    currentLocation1 = task.getResult();
-                }
-            }).addOnFailureListener(e -> {
-                Log.d("MapDemoActivity", "Error trying to get last GPS location");
-                e.printStackTrace();
-            });
-        }
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
     }
 
     @Override
@@ -480,5 +358,82 @@ public class MainActivity extends AppCompatActivity {
                 || super.onSupportNavigateUp();
     }
 
+    class fetchLastLocation implements Runnable {
+        @Override
+        public void run() {
+            fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(MainActivity.this);
+
+            @SuppressLint("MissingPermission") final Task<Location> task = fusedLocationProviderClient.getLastLocation();
+            task.addOnSuccessListener(location -> {
+                if (task.isSuccessful() && task.getResult() != null) {
+                    currentLocation1 = task.getResult();
+
+                }
+            }).addOnFailureListener(e -> {
+                Log.d("MapDemoActivity", "Error trying to get last GPS location");
+                e.printStackTrace();
+            });
+        }
+    }
+
 
 }
+/*
+class Imagini implements Runnable {
+
+    @Override
+    public void run() {
+        if (fisier1 && json1) {
+            ArrayList<Detalii> detalius = new ArrayList<>();
+            try {
+                FileInputStream fisr = openFileInput("DetaliiName");
+                InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
+                BufferedReader bufferedReaderr = new BufferedReader(isrr);
+                StringBuilder sbr = new StringBuilder();
+                String lines;
+                while ((lines = bufferedReaderr.readLine()) != null) {
+                    sbr.append(lines).append("\n");
+                }
+                Gson gs = new Gson();
+                //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
+                //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
+                //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
+                Details details = gs.fromJson(String.valueOf(sbr), Details.class);
+                //Log.e("Detaliii",""+details.getDetails().isEmpty());
+
+                if (!detalius.isEmpty()) {
+                    detalius.clear();
+                }
+                detalius.addAll(details.getDetalii());
+                Log.e("Marime cacheDPoze", "" + detalius.size());
+                //Log.e("Citire", "" + sbr.toString());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            for (Detalii detall : detalius) {
+                URL url = null;
+                try {
+                    url = new URL(detall.getPoza());
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+                File file = new File(String.valueOf(getCacheDir()));
+                Bitmap bitmap = null;
+                try {
+                    assert url != null;
+                    bitmap = BitmapFactory.decodeStream(url.openStream());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Log.e("Imagine", "" + bitmap);
+                try {
+                    assert bitmap != null;
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, new FileOutputStream(file));
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+} */

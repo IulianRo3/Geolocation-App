@@ -30,6 +30,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
 import com.example.harta.Cafenea;
 import com.example.harta.Cafenele;
 import com.example.harta.Details;
@@ -82,7 +84,7 @@ import static com.bumptech.glide.request.RequestOptions.bitmapTransform;
 
 public class HomeFragment extends Fragment implements OnMapReadyCallback, View.OnClickListener {
 
-    private BottomSheetBehavior mBottomSheetBehavior;
+    private BottomSheetBehavior<View> mBottomSheetBehavior;
     View bottomSheet;
 
     static ArrayList<Marker> chunk = new ArrayList<>();
@@ -103,6 +105,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     static ArrayList<Cafenea> rezultat;
     static Boolean requestingLocationUpdates = true;
     static MapStateManager mgr;
+
     CameraPosition position;
     // short delay = 150;
     //Variabile globale
@@ -116,6 +119,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     ListView infoP;
     Button next;
     Button center;
+
     ValueEventListener CameraEventListener = new ValueEventListener() {
         @Override
         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -224,26 +228,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
     }
 
-    public void read_fileP(@NonNull Context context) {
-        try {
-            FileInputStream fisr = context.openFileInput("PozeCache");
-            InputStreamReader isrr = new InputStreamReader(fisr, StandardCharsets.UTF_8);
-            BufferedReader bufferedReaderr = new BufferedReader(isrr);
-            StringBuilder sbr = new StringBuilder();
-            String lines;
-            while ((lines = bufferedReaderr.readLine()) != null) {
-                sbr.append(lines).append("\n");
-            }
-            //Log.e("citit",""+gs.fromJson(sbr.toString(), Details.class).getDetalii());
-            //detaliu.addAll(gs.fromJson(String.valueOf(sbr), Detalii.class));
-            //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
 
-            //Log.e("Detaliii",""+details.getDetails().isEmpty());
-            Log.e("Citire", "" + sbr.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
 
     ValueEventListener valueEventListener = new ValueEventListener() {
@@ -291,9 +276,22 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
+
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (MainActivity.currentLocation2 != null) {
+                    LocCheck lc = new LocCheck();
+                    new Thread(lc).start();
+                }
+                handler.postDelayed(this, 5000);
+            }
+        }, 5000);
         View view = inflater.inflate(R.layout.fragment_home, container, false);
         mMapView = view.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
+
 
         mMapView.getMapAsync(this);
         Log.e("PIZZA", String.valueOf(MainActivity.currentLocation1));
@@ -326,10 +324,6 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         bottomSheet = view.findViewById(R.id.bottom_sheet);
         mBottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
         mBottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-        if (MainActivity.Poze1) {
-            read_fileP(HomeFragment.this.requireContext());
-            Log.e("CITIRE POZE", "S-A APELAT");
-        }
 
 
         //Apelare functii de cautare
@@ -364,7 +358,59 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         return view;
     }
 
+    class LocCheck implements Runnable {
+        Handler z = new Handler();
 
+        @Override
+        public void run() {
+            z.post(() -> {
+                while (MainActivity.currentLocation2.getLongitude() != MainActivity.currentLocation1.getLongitude() || MainActivity.currentLocation2.getLatitude() != MainActivity.currentLocation1.getLatitude()) {
+
+                    Log.e("MERGE LOCATIA", "MERG MARKERELE");
+                    Log.e("MERGE LOCATIA", "locatie init" + MainActivity.currentLocation1.getLatitude());
+                    Log.e("MERGE LOCATIA", "locatie update" + MainActivity.currentLocation2.getLatitude());
+
+                    if ((MainActivity.currentLocation2.getLatitude() < MainActivity.currentLocation1.getLatitude() + 0.001 || MainActivity.currentLocation2.getLatitude() > MainActivity.currentLocation1.getLatitude() - 0.001) ||
+                            (MainActivity.currentLocation2.getLongitude() < MainActivity.currentLocation1.getLongitude() + 0.001 || MainActivity.currentLocation2.getLongitude() > MainActivity.currentLocation1.getLongitude() - 0.001)) {
+                        Log.e("MERGE LOCATIA", "MERGe IF");
+                        for (Marker mLocationMarker : mrk) {
+                            mLocationMarker.remove();
+                        }
+                        mrk.clear();
+                        MainActivity.currentLocation1 = MainActivity.currentLocation2;
+                        if (json) {
+                            databaseCafea.addListenerForSingleValueEvent(valueEventListener);
+                        } else {
+                            read_file(HomeFragment.this.requireContext(), fileName, cache);
+
+                            for (Cafenea cafenea : cache) {
+                                if (MainActivity.currentLocation1 != null && cafenea.getLatitude() <= MainActivity.currentLocation1.getLatitude() + 0.007 && cafenea.getLatitude() >= MainActivity.currentLocation1.getLatitude() - 0.007) {
+                                    if (cafenea.getLongitude() <= MainActivity.currentLocation1.getLongitude() + 0.007 && cafenea.getLongitude() >= MainActivity.currentLocation1.getLongitude() - 0.007) {
+                                        mrk.add(googleMap.addMarker(new MarkerOptions()
+                                                .position(new LatLng(cafenea.getLatitude(), cafenea.getLongitude()))
+                                                .title(cafenea.getName())
+                                                .snippet(cafenea.getAddress())
+                                                .icon(BitmapDescriptorFactory.defaultMarker
+                                                        (BitmapDescriptorFactory.HUE_AZURE))));
+                                    }
+                                }
+
+                                //Log.e("Citire",""+cafenea.getLatitude()+" "+ cafenea.getLongitude());
+                            }
+                        }
+                    }
+
+
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+
+        }
+    }
 
     public void ListenerForSingeAndMGR() {
         if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -784,6 +830,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 // Obtain the SupportMapFragment and get notified when the map is ready to be used.
                 if (ActivityCompat.checkSelfPermission(HomeFragment.this.requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                     googleMap.setMyLocationEnabled(true);
+
                     new Async(HomeFragment.this).execute();
                 } else {
                     Toast.makeText(HomeFragment.this.requireContext(), "Please enable location access", Toast.LENGTH_SHORT).show();
@@ -1180,6 +1227,7 @@ public void InfoPanel(Marker marker) throws IOException {
                     if (detalis.getId().equals(ID)) {
                         Glide.with(HomeFragment.this.requireContext())
                                 .load(detalis.getPoza())
+                                .apply(RequestOptions.diskCacheStrategyOf(DiskCacheStrategy.AUTOMATIC))
                                 .apply(bitmapTransform(new BlurTransformation(22)))
                                 .into(imageView);
                         info_mic.setText(detalis.getInfo1());
@@ -1196,6 +1244,7 @@ public void InfoPanel(Marker marker) throws IOException {
                     Glide.with(HomeFragment.this.requireContext())
                             .load(detalis.getPoza())
                             .apply(bitmapTransform(new BlurTransformation(22)))
+                            .apply(RequestOptions.diskCacheStrategyOf(DiskCacheStrategy.AUTOMATIC))
                             .into(imageView);
                     info_mic.setText(detalis.getInfo1());
                     tag1.setText(detalis.getTag().get(0));
@@ -1307,30 +1356,7 @@ public void InfoPanel(Marker marker) throws IOException {
         new Thread(map).start();
         }
         */
-/* googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                new LatLng(currentLocation.getLatitude(),
-                        currentLocation.getLongitude()), 15));*/
-/*
-public CameraPosition savePos(){
-    final CameraPosition[] test = new CameraPosition[1];
-    googleMap.setOnCameraMoveListener(new GoogleMap.OnCameraMoveListener() {
-        @Override
-        public void onCameraMove() {
 
-
-           test[0] = googleMap.getCameraPosition();
-
-        }
-    });
-    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(test[0]));
-
-    return test[0];
-}
-public void SetPos(CameraPosition LastViewed){
-        LastViewed = savePos();
-
-}
- */
 
 
 
