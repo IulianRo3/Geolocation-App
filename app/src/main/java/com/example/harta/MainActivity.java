@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity implements android.location.
     private AppBarConfiguration mAppBarConfiguration;
     public static ArrayList<Cafenea> cache = new ArrayList<>();
     public static Location currentLocation1;
+    public static String smth;
     public static boolean json1;
     public static boolean fisier1;
     public boolean json;
@@ -309,6 +310,15 @@ public class MainActivity extends AppCompatActivity implements android.location.
         setSupportActionBar(toolbar);
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
+        if (currentLocation1 != null) {
+            try {
+                smth = getCityName(cache.get(0).getLatitude(), cache.get(0).getLongitude());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } else {
+            smth = "ceva";
+        }
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
 
