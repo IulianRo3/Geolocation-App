@@ -309,6 +309,7 @@ public class MainActivity extends AppCompatActivity implements android.location.
         setSupportActionBar(toolbar);
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         NavigationView navigationView = findViewById(R.id.nav_view);
+
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
 
@@ -380,7 +381,6 @@ public class MainActivity extends AppCompatActivity implements android.location.
 }
 /*
 class Imagini implements Runnable {
-
     @Override
     public void run() {
         if (fisier1 && json1) {
@@ -400,7 +400,6 @@ class Imagini implements Runnable {
                 //Details details = new Details(gs.fromJson(String.valueOf(sbr), Details.class));
                 Details details = gs.fromJson(String.valueOf(sbr), Details.class);
                 //Log.e("Detaliii",""+details.getDetails().isEmpty());
-
                 if (!detalius.isEmpty()) {
                     detalius.clear();
                 }
@@ -410,7 +409,6 @@ class Imagini implements Runnable {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
             for (Detalii detall : detalius) {
                 URL url = null;
                 try {
