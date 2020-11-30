@@ -17,5 +17,7 @@
     <string name="next" />
     <string name="c">C</string>
     <string name="nu_s_a_gasit_nimic">Nu s-a gasit nimic</string>
+    <string name="favorites">Favorites</string>
+    <string name="setings">setings</string>
 
 </resources>

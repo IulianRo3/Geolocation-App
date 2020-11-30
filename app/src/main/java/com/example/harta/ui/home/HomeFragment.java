@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -27,7 +28,9 @@ import android.widget.ViewFlipper;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.NavController;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
@@ -264,7 +267,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             e.printStackTrace();
         }
 
-
+        Button menu = view.findViewById(R.id.menu);
+        menu.setOnClickListener(this);
         Back back = new Back();
         new Thread(back).start();
         Log.e("Json", "" + json);
@@ -366,6 +370,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     @Override
     public void onMapReady(GoogleMap mMap) {
         googleMap = mMap;
+        googleMap.getUiSettings().setCompassEnabled(false);
         MapRdy mrd = new MapRdy();
         googleMap.setOnMapLongClickListener(latLng -> {
             for (Marker marker : mrk) {
@@ -510,8 +515,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
                 } else {
                     Toast.makeText(HomeFragment.this.getContext(), "Can't find location", Toast.LENGTH_SHORT).show();
                 }
+                break;
             }
-
+            case R.id.menu:{
+                MainActivity.drawer.openDrawer(Gravity.LEFT);
+                break;
+            }
         }
     }
 
