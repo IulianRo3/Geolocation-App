@@ -8,6 +8,7 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,6 +28,7 @@ import android.widget.ViewFlipper;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.fragment.app.Fragment;
@@ -66,14 +68,21 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 import com.google.gson.Gson;
+import com.google.gson.stream.JsonWriter;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -137,6 +146,62 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         }
         Log.e("Fisier Exista", "" + fisier);
         Log.e("Fisier e scris", "" + json);
+    }
+    public void scriereJsonFavoriteInit(Cafenea cafea) {
+        final Handler handler = new Handler();
+        handler.postDelayed(() -> {
+            FileOutputStream fos = null;
+            try {
+                fos = HomeFragment.this.requireContext().openFileOutput(MainActivity.fileName1, Context.MODE_PRIVATE);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+
+            assert fos != null;
+            OutputStreamWriter out = new OutputStreamWriter(fos);
+            JsonWriter writer = new JsonWriter(out);
+            //set indentation for pretty print
+            writer.setIndent("\t");
+            //start writing
+            try {
+                writer.beginObject(); //{
+                writer.name("Cafenele").beginArray();
+
+
+                    writer.beginObject(); //{
+
+                    writer.name("Address").value(cafea.getAddress()); // "id": 123
+                    writer.name("Latitude").value(cafea.getLatitude()); // "name": "David"
+                    writer.name("Longitude").value(cafea.getLongitude()); // "permanent": false
+                    writer.name("id").value(cafea.getId());
+                    writer.name("name").value(cafea.getName());// "address": {
+                    writer.endObject(); // }
+
+                writer.endArray(); // ]
+                writer.endObject(); // }
+                writer.flush();
+
+                //close writer
+                writer.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }, 450);
+    }
+    public void verificareFavs() throws IOException {
+        FileInputStream fis = HomeFragment.this.requireContext().openFileInput(MainActivity.fileName1);
+        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(isr);
+        File file = HomeFragment.this.requireContext().getFileStreamPath(MainActivity.fileName1);
+        if (file.exists()) {
+            MainActivity.fisierFav = true;
+        }
+        if (bufferedReader.readLine() != null) {
+            MainActivity.jsonFav = true;
+        }
+        Log.e("Fisier Exista", "" + MainActivity.fisierFav);
+        Log.e("Fisier e scris", "" + MainActivity.jsonFav);
     }
 
 
@@ -266,6 +331,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         } catch (IOException e) {
             e.printStackTrace();
         }
+
 
         Button menu = view.findViewById(R.id.menu);
         menu.setOnClickListener(this);
@@ -519,6 +585,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             }
             case R.id.menu:{
                 MainActivity.drawer.openDrawer(Gravity.LEFT);
+                break;
+            }
+            case R.id.button2:{
+                Log.e("Mortii", "ranitii");
+                break;
+            }
+            case R.id.button3:{
+                Log.e("Mortii3", "raniti2i");
                 break;
             }
         }
@@ -1106,9 +1180,86 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
 
     //Format afisare rezultate cautare
     public class UsersAdapter extends ArrayAdapter<Cafenea> {
+        @RequiresApi(api = Build.VERSION_CODES.O)
+        void json(TextView user_name, TextView adress){
+            for (Cafenea cafenea : rezultat) {
+                if (user_name.getText().equals(cafenea.getName()) && adress.getText().equals(cafenea.getAddress())) {
+                    if(!MainActivity.fisierFav){
+                        Log.e("aaaaaaaaaaa","scriere initiala");
+                        scriereJsonFavoriteInit(cafenea);
+                        try {
+                            verificareFavs();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }else if(!MainActivity.jsonFav){
+                        Log.e("aaaaaaaaaaa","scriere cand e gol");
+                        scriereJsonFavoriteInit(cafenea);
+                        try {
+                            verificareFavs();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }else{
+                        Log.e("aaaaaaaaaaa","scriere prin adaugare");
+
+                        Path path = Paths.get(HomeFragment.this.requireContext().getFilesDir() +"/"+MainActivity.fileName1);
+                        List<String> lines = null;
+                        try {
+                            lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        int position1 = lines.size()-2;
+                        int position2 = lines.size()-1;
+                        int position3 = lines.size();
+                        int position4 = lines.size()+1;
+                        int position5 = lines.size()+2;
+                        int position6 = lines.size()+3;
+                        int position7 = lines.size()+4;
+                        int position8 = lines.size()+5;
+
+
+
+
+
+                        String extraLine = "		,";
+                        String extraLine2 ="		{";
+                        String extraLine3 ="			"+'"'+"Address"+'"'+": "+'"'+cafenea.getAddress()+'"'+",";
+                        String extraLine4 ="			"+'"'+"Latitude"+'"'+": "+cafenea.getLatitude()+",";
+                        String extraLine5 ="			"+'"'+"Longitude"+'"'+": "+cafenea.getLongitude()+",";
+                        String extraLine6 ="			"+'"'+"id"+'"'+": "+'"' +cafenea.getId()+ '"'+",";
+                        String extraLine7 ="			"+'"'+"name"+'"'+": "+'"'+cafenea.getName()+'"';
+                        String extraLine8 ="		}";
+
+
+
+
+                        lines.add(position1, extraLine);
+                        lines.add(position2, extraLine2);
+                        lines.add(position3, extraLine3);
+                        lines.add(position4, extraLine4);
+                        lines.add(position5, extraLine5);
+                        lines.add(position6, extraLine6);
+                        lines.add(position7, extraLine7);
+                        lines.add(position8, extraLine8);
+
+
+
+                        try {
+                            Files.write(path, lines, StandardCharsets.UTF_8);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                }
+            }
+        }
         public UsersAdapter(@NonNull Context context, ArrayList<Cafenea> users) {
             super(context, 0, users);
         }
+        @RequiresApi(api = Build.VERSION_CODES.O)
         @NonNull
         @Override
         //Creare butoane si elemente de afisare
@@ -1125,10 +1276,17 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             final TextView adress = finalConvertView.findViewById(R.id.adresa_text);
             Button Locatie = finalConvertView.findViewById(R.id.buttonLocatie);
             Button Detalii = finalConvertView.findViewById(R.id.buttonDetalii);
+            Button favsrc = finalConvertView.findViewById(R.id.button2);
+
             assert user != null;
             user_name.setText(user.getName());
             adress.setText(user.getAddress());
+            favsrc.setOnClickListener(view->{
+                Log.e("aaaaaaaaaaa","s-a apasat 1");
+                json(user_name,adress);
 
+
+            });
             Locatie.setOnClickListener(view -> {
                 if (srch != null) {
                     srch.remove();
@@ -1202,6 +1360,82 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
     public class UsersAdapter2 extends ArrayAdapter<Cafenea> {
         public Detalii detalis;
         String ID;
+        @RequiresApi(api = Build.VERSION_CODES.O)
+        void json(Cafenea cafenea){
+
+
+                    if(!MainActivity.fisierFav){
+                        Log.e("aaaaaaaaaaa","scriere initiala");
+                        scriereJsonFavoriteInit(cafenea);
+                        try {
+                            verificareFavs();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }else if(!MainActivity.jsonFav){
+                        Log.e("aaaaaaaaaaa","scriere cand e gol");
+                        scriereJsonFavoriteInit(cafenea);
+                        try {
+                            verificareFavs();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }else{
+                        Log.e("aaaaaaaaaaa","scriere prin adaugare");
+
+                        Path path = Paths.get(HomeFragment.this.requireContext().getFilesDir() +"/"+MainActivity.fileName1);
+                        List<String> lines = null;
+                        try {
+                            lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        int position1 = lines.size()-2;
+                        int position2 = lines.size()-1;
+                        int position3 = lines.size();
+                        int position4 = lines.size()+1;
+                        int position5 = lines.size()+2;
+                        int position6 = lines.size()+3;
+                        int position7 = lines.size()+4;
+                        int position8 = lines.size()+5;
+
+
+
+
+
+                        String extraLine = "		,";
+                        String extraLine2 ="		{";
+                        String extraLine3 ="			"+'"'+"Address"+'"'+": "+'"'+cafenea.getAddress()+'"'+",";
+                        String extraLine4 ="			"+'"'+"Latitude"+'"'+": "+cafenea.getLatitude()+",";
+                        String extraLine5 ="			"+'"'+"Longitude"+'"'+": "+cafenea.getLongitude()+",";
+                        String extraLine6 ="			"+'"'+"id"+'"'+": "+'"' +cafenea.getId()+ '"'+",";
+                        String extraLine7 ="			"+'"'+"name"+'"'+": "+'"'+cafenea.getName()+'"';
+                        String extraLine8 ="		}";
+
+
+
+
+                        lines.add(position1, extraLine);
+                        lines.add(position2, extraLine2);
+                        lines.add(position3, extraLine3);
+                        lines.add(position4, extraLine4);
+                        lines.add(position5, extraLine5);
+                        lines.add(position6, extraLine6);
+                        lines.add(position7, extraLine7);
+                        lines.add(position8, extraLine8);
+
+
+
+                        try {
+                            Files.write(path, lines, StandardCharsets.UTF_8);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+
+
+        }
         ValueEventListener DetaliiEventListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -1226,6 +1460,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
         };
         DatabaseReference databaseDetalii = FirebaseDatabase.getInstance().getReference("Detalii");
 
+        @RequiresApi(api = Build.VERSION_CODES.O)
         public void AfisarePoze(Cafenea cafenea, View view) {
             ID = cafenea.getId();
             ImageView imageView = view.findViewById(R.id.imageView3);
@@ -1233,6 +1468,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             TextView tag1 = view.findViewById(R.id.textView7);
             TextView tag2 = view.findViewById(R.id.textView8);
             TextView tag3 = view.findViewById(R.id.textView9);
+            Button favpan = view.findViewById(R.id.button3);
+            favpan.setOnClickListener(views->{
+                Log.e("bbbbbbbb","bbbbbb");
+                json(cafenea);
+
+            });
             if (MainActivity.fisier1 && MainActivity.json1) {
                 Log.e("CacheD", "S-a facut switch-ul");
                 read_fileD(HomeFragment.this.requireContext(), "DetaliiName", detaliu);
@@ -1273,6 +1514,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, View.O
             super(context, 0, users);
         }
 
+        @RequiresApi(api = Build.VERSION_CODES.O)
         @NonNull
         @Override
         //Creare butoane si elemente de afisare

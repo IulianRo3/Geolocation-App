@@ -1,10 +1,13 @@
-package com.example.harta;
+package com.example.harta.Favs;
 
 import android.content.Context;
 
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
+
+import com.example.harta.Favs.FavTab1;
+import com.example.harta.Favs.FavTab2;
 
 public class MyAdapter extends FragmentStateAdapter {
 

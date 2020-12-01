@@ -59,6 +59,9 @@ public class MainActivity extends AppCompatActivity implements android.location.
     public static Location currentLocation1;
     public static boolean json1;
     public static boolean fisier1;
+    public static boolean jsonFav;
+    public static boolean fisierFav;
+    public static String fileName1 = "Favorite";
     public boolean json;
     public boolean fisier;
     public ArrayList<Detalii> detaliu = new ArrayList<>();
@@ -124,7 +127,20 @@ public class MainActivity extends AppCompatActivity implements android.location.
         myCity = addresses.get(0).getLocality();
         return myCity;
     }
-
+   public void verificareFavs() throws IOException {
+        FileInputStream fis = this.openFileInput(fileName1);
+        InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+        BufferedReader bufferedReader = new BufferedReader(isr);
+        File file = this.getFileStreamPath(fileName1);
+        if (file.exists()) {
+            fisierFav = true;
+        }
+        if (bufferedReader.readLine() != null) {
+            jsonFav = true;
+        }
+        Log.e("Fisier Exista", "" + fisierFav);
+        Log.e("Fisier e scris", "" + jsonFav);
+    }
     public void ScriereD(String fileName) {
         databaseDetalii.addListenerForSingleValueEvent(DetaliiEventListener);
         final Handler handler = new Handler();
@@ -259,6 +275,7 @@ public class MainActivity extends AppCompatActivity implements android.location.
         try {
             verificareJson();
             verificareJsonD();
+            verificareFavs();
         } catch (IOException e) {
             e.printStackTrace();
         }
