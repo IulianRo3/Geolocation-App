@@ -9,3 +9,5 @@ So far it has implemented:
 -Real time location   
 -Function to zoom on your location   
 -Search button in the application database   
+I am not sure if this aplication will work on someones else pc, since they will need keys to use the database.   
+Still we have some decents algorithms there, in my opinion of an entry-level programmer.
